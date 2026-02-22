@@ -62,7 +62,8 @@ Check if main branch has protection rules:
 From the protection settings, verify:
 - `allow_force_pushes` is false/disabled
 - `allow_deletions` is false/disabled
-- `require_branches_up_to_date` is enabled
+- `require_branches_up_to_date` is enabled (true)
+- `require_signed_commits` is enabled (true)
 - `dismiss_stale_reviews` is enabled
 
 ### Step 5: Check Merge Settings
@@ -86,6 +87,8 @@ REPORT="## Repository Healthcheck
 - Main branch protected: [YES/NO]
 - Require PR reviews: [YES/NO]
 - Require status checks: [YES/NO]
+- Require up-to-date branches: [YES/NO]
+- Require signed commits: [YES/NO]
 - Allow force push: [YES/NO]
 - Allow branch deletion: [YES/NO]
 
@@ -120,8 +123,8 @@ If user says yes, proceed to Step 8.
    gh api -X PUT repos/$OWNER/$NAME/protection/main \
      -f required_status_checks='null' \
      -f enforce_admins=true \
-     -f require_up_to_date_branches=false \
-     -f require_signed_commits=false \
+     -f require_up_to_date_branches=true \
+     -f require_signed_commits=true \
      -f required_pull_request_reviews='{"dismiss_stale_reviews":true,"require_code_owner_reviews":true}' \
      -f restrictions='null' \
      -f allow_force_pushes=false \
