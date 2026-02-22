@@ -1,9 +1,9 @@
 ---
-name: apply-change
-description: Creates PR, reviews it, and merges if approved - otherwise asks for guidance
+name: ship
+description: Commits, pushes, creates PR, reviews, and merges to main with safety checks
 ---
 
-# Apply Change Skill
+# Ship Skill
 
 This skill automates the complete workflow: commit changes, push, create PR, review, and merge if approved.
 
