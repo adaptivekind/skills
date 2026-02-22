@@ -145,13 +145,54 @@ if git diff ${BASE_BRANCH}...HEAD --name-only | grep -qE "(package\.json|require
 fi
 ```
 
-### Step 6: Determine High Confidence
+### Step 6: Check Workflow Status
+
+Before merging, verify that all GitHub Actions workflows and checks have passed:
+
+```bash
+# Check workflow status on the PR
+echo "Checking workflow status..."
+
+# Wait for checks to complete (with timeout)
+MAX_WAIT=300  # 5 minutes
+WAITED=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+    # Get check status
+    CHECK_STATUS=$(gh pr view $PR_NUMBER --json statusCheckRollup --jq '.statusCheckRollup.state' 2>/dev/null || echo "UNKNOWN")
+    
+    if [ "$CHECK_STATUS" = "SUCCESS" ]; then
+        echo "All workflows passed"
+        WORKFLOWS_PASSED=true
+        break
+    elif [ "$CHECK_STATUS" = "FAILURE" ] || [ "$CHECK_STATUS" = "ERROR" ]; then
+        echo "Some workflows failed"
+        WORKFLOWS_PASSED=false
+        break
+    elif [ "$CHECK_STATUS" = "PENDING" ] || [ "$CHECK_STATUS" = "UNKNOWN" ]; then
+        echo "Workflows still running... waiting 10s"
+        sleep 10
+        WAITED=$((WAITED + 10))
+    else
+        # No checks found or empty status
+        echo "No workflow checks found or status unknown"
+        WORKFLOWS_PASSED=true
+        break
+    fi
+done
+
+if [ $WAITED -ge $MAX_WAIT ]; then
+    echo "Timeout waiting for workflows"
+    WORKFLOWS_PASSED=false
+fi
+```
+
+### Step 7: Determine High Confidence
 
 Determine if the change is safe to auto-merge:
 ```bash
-# High confidence = no issues found
+# High confidence = no issues found AND workflows passed
 HIGH_CONFIDENCE=false
-if [ -z "$ISSUES" ]; then
+if [ -z "$ISSUES" ] && [ "$WORKFLOWS_PASSED" = true ]; then
     HIGH_CONFIDENCE=true
 fi
 
@@ -164,19 +205,31 @@ All checks passed:
 - No external URLs found
 - No prompt injection risks
 - No suspicious patterns
+- All workflows passed
 
 High confidence - proceeding with merge."
 else
     echo "## Review Findings
 
-The following issues were detected:
-$ISSUES
+The following issues were detected:"
+    
+if [ -n "$ISSUES" ]; then
+    echo "$ISSUES"
+fi
 
-Asking user for guidance..."
+if [ "$WORKFLOWS_PASSED" != true ]; then
+    echo "- Workflows did not pass or timed out"
+    
+    # Show failed checks
+    gh pr checks $PR_NUMBER 2>/dev/null || true
+fi
+
+echo ""
+echo "Asking user for guidance..."
 fi
 ```
 
-### Step 7: Merge (if high confidence)
+### Step 8: Merge (if high confidence)
 
 If high confidence, auto-merge without user confirmation. Otherwise, ask user:
 ```bash
@@ -239,3 +292,4 @@ fi
 - After successful merge, main branch is checked out and pulled
 - All commits must be GPG signed
 - Squash merge is the only merge method used
+- All GitHub Actions workflows must pass before merging (waits up to 5 minutes)
