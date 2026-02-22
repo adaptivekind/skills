@@ -118,27 +118,61 @@ If user says yes, proceed to Step 8.
 
 ### Step 8: Apply Fixes (if requested)
 
-1. **Enable branch protection**:
+1. **Check existing branch protection settings**:
+   ```bash
+   # Get current protection settings to preserve existing configurations
+   CURRENT_PROTECTION=$(gh api repos/$OWNER/$NAME/protection/main 2>/dev/null || echo "NONE")
+   
+   # Check if status checks are already configured
+   if echo "$CURRENT_PROTECTION" | grep -q "required_status_checks"; then
+       # Preserve existing status checks
+       REQUIRED_STATUS_CHECKS=$(echo "$CURRENT_PROTECTION" | jq -r '.required_status_checks // null')
+   else
+       # No existing status checks
+       REQUIRED_STATUS_CHECKS="null"
+   fi
+   
+   # Check if restrictions are already configured
+   if echo "$CURRENT_PROTECTION" | grep -q "restrictions"; then
+       # Preserve existing restrictions
+       RESTRICTIONS=$(echo "$CURRENT_PROTECTION" | jq -r '.restrictions // null')
+   else
+       # No existing restrictions
+       RESTRICTIONS="null"
+   fi
+   ```
+
+2. **Enable branch protection** (preserving existing settings):
    ```bash
    gh api -X PUT repos/$OWNER/$NAME/protection/main \
-     -f required_status_checks='null' \
+     -f required_status_checks="$REQUIRED_STATUS_CHECKS" \
      -f enforce_admins=true \
      -f require_up_to_date_branches=true \
      -f require_signed_commits=true \
      -f required_pull_request_reviews='{"dismiss_stale_reviews":true,"require_code_owner_reviews":true}' \
-     -f restrictions='null' \
+     -f restrictions="$RESTRICTIONS" \
      -f allow_force_pushes=false \
      -f allow_deletions=false
    ```
 
+3. **Confirm changes**:
+   ```bash
+   echo "Branch protection applied with:"
+   echo "  - Required up-to-date branches: ENABLED"
+   echo "  - Required signed commits: ENABLED"
+   echo "  - Existing status checks: $(if [ "$REQUIRED_STATUS_CHECKS" != "null" ]; then echo "PRESERVED"; else echo "NONE"; fi)"
+   echo "  - Existing restrictions: $(if [ "$RESTRICTIONS" != "null" ]; then echo "PRESERVED"; else echo "NONE"; fi)"
+   echo ""
+   echo "Please verify in GitHub settings."
+   ```
+
+4. **Set default merge method** (note: GitHub doesn't allow setting default via API, user must set in UI):
+   ```bash
+   echo "Note: Set default merge method to 'Squash' in GitHub repository settings > General > Merge pull request"
+
 2. **Set default merge method** (note: GitHub doesn't allow setting default via API, user must set in UI):
    ```bash
    echo "Note: Set default merge method to 'Squash' in GitHub repository settings > General > Merge pull request"
-   ```
-
-3. **Confirm changes**:
-   ```bash
-   echo "Branch protection applied. Please verify in GitHub settings."
    ```
 
 ## Error Handling
