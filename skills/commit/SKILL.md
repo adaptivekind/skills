@@ -45,7 +45,17 @@ Stage all changes:
 git add -A
 ```
 
-### Step 3: Create Signed Commit
+### Step 3: Analyze Changes
+
+First, run the uncommitted changes script to see what has been modified:
+
+```bash
+./scripts/uncommitted-changes.sh
+```
+
+This script displays all local changes including staged files, unstaged modifications, and untracked files.
+
+### Step 4: Create Signed Commit
 
 Create a commit with a message based on the changes being made. Analyze the staged files to generate an appropriate commit message:
 
@@ -123,3 +133,4 @@ If the commit is not signed, fail with error: "Commit was not signed properly"
 - The commit MUST be signed - do not proceed if signing fails
 - This skill works with local repositories only
 - See `scripts/pre-commit.sh` for the deterministic pre-commit logic
+- See `scripts/uncommitted-changes.sh` to view all uncommitted changes (works in any repository)
