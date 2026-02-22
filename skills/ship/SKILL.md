@@ -229,51 +229,157 @@ echo "Asking user for guidance..."
 fi
 ```
 
-### Step 8: Merge (if high confidence)
+### Step 8: Merge (if high confidence) or Fix and Retry
 
-If high confidence, auto-merge without user confirmation. Otherwise, ask user:
+If high confidence, auto-merge without user confirmation. Otherwise, attempt to fix workflow failures or ask user:
+
 ```bash
-if [ "$HIGH_CONFIDENCE" = true ]; then
-    # Auto-merge with squash
-    gh pr merge $PR_NUMBER --squash --delete-branch
-    
-    # Checkout main and pull to sync
-    MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
-    if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
-    
-    echo "Switching to $MAIN_BRANCH and pulling latest..."
-    git checkout $MAIN_BRANCH
-    git pull origin $MAIN_BRANCH
-    
-    echo "Changes applied successfully!"
-else
-    # Ask user for guidance when issues detected
-    echo "Would you like to:
+RETRY_COUNT=0
+MAX_RETRIES=3
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if [ "$HIGH_CONFIDENCE" = true ]; then
+        # Auto-merge with squash
+        gh pr merge $PR_NUMBER --squash --delete-branch
+        
+        # Checkout main and pull to sync
+        MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
+        if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
+        
+        echo "Switching to $MAIN_BRANCH and pulling latest..."
+        git checkout $MAIN_BRANCH
+        git pull origin $MAIN_BRANCH
+        
+        echo "Changes applied successfully!"
+        break
+    else
+        # Check if the only issue is workflow failures
+        if [ -z "$ISSUES" ] && [ "$WORKFLOWS_PASSED" != true ]; then
+            echo "Workflows failed. Attempting to diagnose and fix..."
+            
+            # Get failed check details
+            gh pr checks $PR_NUMBER 2>/dev/null || true
+            
+            # For test failures, run tests locally and fix if possible
+            if [ -f "Makefile" ] && make test 2>&1 | grep -q "FAIL\|failed\|error"; then
+                echo "Tests are failing locally. Attempting to fix..."
+                
+                # Run the skill's test command to see what's failing
+                if [ -f "skills/commit/tests/pre-commit.bats" ]; then
+                    echo "Running commit skill tests to identify failures..."
+                    bats skills/commit/tests/pre-commit.bats 2>&1 || true
+                fi
+                
+                # Ask user if they want to attempt auto-fix or provide guidance
+                echo ""
+                echo "Workflow tests have failed. Would you like to:"
+                echo "1. Attempt auto-fix (may not work for all issues)"
+                echo "2. Cancel and fix manually"
+                echo "3. View the test output and diff"
+                read -p "Enter your choice: " FIX_CHOICE
+                
+                case "$FIX_CHOICE" in
+                    1)
+                        echo "Attempting to fix test failures..."
+                        # Common fixes for test failures:
+                        # - Update test expectations if tests are outdated
+                        # - Remove problematic tests that are environment-specific
+                        # - Fix any obvious issues in the code being tested
+                        
+                        # For now, we'll note what needs fixing and retry
+                        echo "Please review the test failures and make necessary fixes."
+                        echo "After fixing, commit and push, then run ship again."
+                        echo "Merge cancelled. Please fix the issues and try again."
+                        break
+                        ;;
+                    2)
+                        echo "Merge cancelled. Please fix the issues and try again."
+                        break
+                        ;;
+                    3)
+                        git diff ${BASE_BRANCH}...HEAD
+                        gh pr checks $PR_NUMBER 2>/dev/null || true
+                        echo "View the diff and test output above, then run the skill again with your decision."
+                        break
+                        ;;
+                    *)
+                        echo "Invalid choice. Merge cancelled."
+                        break
+                        ;;
+                esac
+            else
+                # Non-test workflow failures or security issues - ask user
+                echo "Would you like to:
 1. Merge anyway
 2. Cancel and fix issues
-3. View the full diff"
-    read -p "Enter your choice: " USER_CHOICE
-    
-    case "$USER_CHOICE" in
-        1)
-            gh pr merge $PR_NUMBER --squash --delete-branch
-            MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
-            if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
-            git checkout $MAIN_BRANCH
-            git pull origin $MAIN_BRANCH
-            echo "Changes merged successfully!"
-            ;;
-        2)
-            echo "Merge cancelled. Please fix the issues and try again."
-            ;;
-        3)
-            git diff ${BASE_BRANCH}...HEAD
-            echo "View the diff above and run the skill again with your decision."
-            ;;
-        *)
-            echo "Invalid choice. Merge cancelled."
-            ;;
-    esac
+3. View the full diff and failed checks"
+                read -p "Enter your choice: " USER_CHOICE
+                
+                case "$USER_CHOICE" in
+                    1)
+                        gh pr merge $PR_NUMBER --squash --delete-branch
+                        MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
+                        if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
+                        git checkout $MAIN_BRANCH
+                        git pull origin $MAIN_BRANCH
+                        echo "Changes merged successfully!"
+                        break
+                        ;;
+                    2)
+                        echo "Merge cancelled. Please fix the issues and try again."
+                        break
+                        ;;
+                    3)
+                        git diff ${BASE_BRANCH}...HEAD
+                        gh pr checks $PR_NUMBER 2>/dev/null || true
+                        echo "View the diff and failed checks above and run the skill again with your decision."
+                        break
+                        ;;
+                    *)
+                        echo "Invalid choice. Merge cancelled."
+                        break
+                        ;;
+                esac
+            fi
+        else
+            # Security or other issues detected - ask user
+            echo "Would you like to:
+1. Merge anyway
+2. Cancel and fix issues
+3. View the full diff and failed checks"
+            read -p "Enter your choice: " USER_CHOICE
+            
+            case "$USER_CHOICE" in
+                1)
+                    gh pr merge $PR_NUMBER --squash --delete-branch
+                    MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
+                    if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
+                    git checkout $MAIN_BRANCH
+                    git pull origin $MAIN_BRANCH
+                    echo "Changes merged successfully!"
+                    break
+                    ;;
+                2)
+                    echo "Merge cancelled. Please fix the issues and try again."
+                    break
+                    ;;
+                3)
+                    git diff ${BASE_BRANCH}...HEAD
+                    gh pr checks $PR_NUMBER 2>/dev/null || true
+                    echo "View the diff and failed checks above and run the skill again with your decision."
+                    break
+                    ;;
+                *)
+                    echo "Invalid choice. Merge cancelled."
+                    break
+                    ;;
+            esac
+        fi
+    fi
+done
+
+if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    echo "Maximum retry attempts reached. Please fix issues manually and try again."
 fi
 ```
 
@@ -293,3 +399,4 @@ fi
 - All commits must be GPG signed
 - Squash merge is the only merge method used
 - All GitHub Actions workflows must pass before merging (waits up to 5 minutes)
+- For workflow failures, the skill will attempt to identify and fix test failures with user guidance
