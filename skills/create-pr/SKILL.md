@@ -12,6 +12,7 @@ This skill creates a GitHub pull request for the current branch.
 - User asks to create a PR
 - User asks to open a pull request
 - User wants to submit changes for review
+- User asks to update PR title or description
 
 ## Prerequisites
 
@@ -108,6 +109,42 @@ Verify the PR was created:
 ```bash
 gh pr view --web
 ```
+
+### Step 7: Update PR (Optional)
+
+If user asks to update an existing PR:
+
+1. First, find the PR number for the current branch:
+   ```bash
+   PR_NUMBER=$(gh pr list --head "$CURRENT_BRANCH" --json number --jq '.[0].number')
+   ```
+
+2. If user provided a new title:
+   ```bash
+   gh pr edit $PR_NUMBER --title "New Title"
+   ```
+
+3. If user provided a new body/description:
+   ```bash
+   gh pr edit $PR_NUMBER --body "New description"
+   ```
+
+4. If user wants to regenerate the summary:
+   ```bash
+   # Regenerate summary (same as Step 5)
+   TITLE=$(git log -1 --format=%s)
+   COMMITS=$(git log ${BASE_BRANCH}..HEAD --format="- %s (%h)" | head -10)
+   FILE_CHANGES=$(git diff ${BASE_BRANCH}...HEAD --stat)
+   BODY="## Summary
+   $COMMITS
+
+   ## Changes
+   \`\`\`
+   $FILE_CHANGES
+   \`\`\`
+   "
+   gh pr edit $PR_NUMBER --title "$TITLE" --body "$BODY"
+   ```
 
 ## Error Handling
 
