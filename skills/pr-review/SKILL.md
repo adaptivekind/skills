@@ -178,6 +178,25 @@ REVIEW_SUMMARY="## PR Review Summary
 
 Output the review summary to the user.
 
+### Step 8: Post Review to PR
+
+Post the review summary as a PR review comment:
+```bash
+# Determine review event based on recommendation
+if [ "$RECOMMENDATION" = "Approve" ]; then
+    REVIEW_EVENT="--approve"
+elif [ "$RECOMMENDATION" = "Request Changes" ]; then
+    REVIEW_EVENT="--request-changes"
+else
+    REVIEW_EVENT="--comment"
+fi
+
+# Post the review to the PR
+gh pr review $PR_NUMBER $REVIEW_EVENT --body "$REVIEW_SUMMARY"
+
+echo "Review posted to PR #$PR_NUMBER"
+```
+
 ## Error Handling
 
 - If gh is not authenticated, fail with error
