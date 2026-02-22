@@ -60,10 +60,33 @@ If the current branch is `main` or `master`, or if in detached HEAD state:
    fi
    ```
 
-2. Generate a new branch name using the pattern `commit/<timestamp>-<short-sha>`:
-   ```bash
-   BRANCH_NAME="commit/$(date +%Y%m%d%H%M%S)-$SHA"
-   ```
+2. Generate a semantic branch name based on the changes:
+   - Analyze the staged/unstaged changes to determine the type:
+     ```bash
+     # Detect change type from file paths
+     CHANGED_FILES=$(git diff --name-only)
+     if echo "$CHANGED_FILES" | grep -q "skills/"; then
+         TYPE="skill"
+     elif echo "$CHANGED_FILES" | grep -qE "\.(test|spec)\."; then
+         TYPE="test"
+     elif echo "$CHANGED_FILES" | grep -qE "^docs/|README|CHANGELOG"; then
+         TYPE="docs"
+     else
+         TYPE="update"
+     fi
+     ```
+
+   - Generate branch name:
+     ```bash
+     # If user provided a branch name prefix, use it; otherwise use change type
+     if [ -n "$BRANCH_PREFIX" ]; then
+         BRANCH_NAME="$BRANCH_PREFIX"
+     else
+         # Convert first word of commit message to slug, or use type
+         COMMIT_MSG=$(git diff --staged --quiet && git diff --cached --quiet && echo "update" || git diff --name-only | head -1 | xargs dirname | sed 's|.*/||' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+         BRANCH_NAME="$TYPE/$(date +%Y%m%d)-$COMMIT_MSG"
+     fi
+     ```
 
 3. Create and switch to the new branch:
    ```bash
