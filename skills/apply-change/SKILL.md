@@ -145,22 +145,18 @@ if git diff ${BASE_BRANCH}...HEAD --name-only | grep -qE "(package\.json|require
 fi
 ```
 
-### Step 6: Present Review Results
+### Step 6: Determine High Confidence
 
-Present findings to user:
+Determine if the change is safe to auto-merge:
 ```bash
-if [ -n "$ISSUES" ]; then
-    echo "## Review Findings
+# High confidence = no issues found
+HIGH_CONFIDENCE=false
+if [ -z "$ISSUES" ]; then
+    HIGH_CONFIDENCE=true
+fi
 
-The following issues were detected:
-$ISSUES
-
-Would you like to:
-1. Merge anyway
-2. Cancel and fix issues
-3. View the full diff"
-    # Ask user for guidance
-else
+# Present findings
+if [ "$HIGH_CONFIDENCE" = true ]; then
     echo "## Review Complete
 
 All checks passed:
@@ -169,21 +165,62 @@ All checks passed:
 - No prompt injection risks
 - No suspicious patterns
 
-Ready to merge with squash."
+High confidence - proceeding with merge."
+else
+    echo "## Review Findings
+
+The following issues were detected:
+$ISSUES
+
+Asking user for guidance..."
 fi
 ```
 
-### Step 7: Merge (if approved)
+### Step 7: Merge (if high confidence)
 
-If user approves, merge with squash:
+If high confidence, auto-merge without user confirmation. Otherwise, ask user:
 ```bash
-# Get user approval
-read -p "Proceed with squash merge? (yes/no): " CONFIRM
-if [ "$CONFIRM" = "yes" ]; then
+if [ "$HIGH_CONFIDENCE" = true ]; then
+    # Auto-merge with squash
     gh pr merge $PR_NUMBER --squash --delete-branch
-    echo "Changes merged successfully!"
+    
+    # Checkout main and pull to sync
+    MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
+    if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
+    
+    echo "Switching to $MAIN_BRANCH and pulling latest..."
+    git checkout $MAIN_BRANCH
+    git pull origin $MAIN_BRANCH
+    
+    echo "Changes applied successfully!"
 else
-    echo "Merge cancelled."
+    # Ask user for guidance when issues detected
+    echo "Would you like to:
+1. Merge anyway
+2. Cancel and fix issues
+3. View the full diff"
+    read -p "Enter your choice: " USER_CHOICE
+    
+    case "$USER_CHOICE" in
+        1)
+            gh pr merge $PR_NUMBER --squash --delete-branch
+            MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
+            if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
+            git checkout $MAIN_BRANCH
+            git pull origin $MAIN_BRANCH
+            echo "Changes merged successfully!"
+            ;;
+        2)
+            echo "Merge cancelled. Please fix the issues and try again."
+            ;;
+        3)
+            git diff ${BASE_BRANCH}...HEAD
+            echo "View the diff above and run the skill again with your decision."
+            ;;
+        *)
+            echo "Invalid choice. Merge cancelled."
+            ;;
+    esac
 fi
 ```
 
@@ -193,10 +230,12 @@ fi
 - If gh not authenticated, fail with error
 - If PR review finds issues, ask user before proceeding
 - If merge fails, display error and suggest manual resolution
+- If checkout/pull fails after merge, warn but don't fail
 
 ## Important Notes
 
-- This skill acts as a gatekeeper - it won't auto-merge if issues found
-- User is always asked for confirmation before merge when issues detected
+- This skill auto-merges when there are no issues (high confidence)
+- User is only asked for confirmation when issues are detected
+- After successful merge, main branch is checked out and pulled
 - All commits must be GPG signed
 - Squash merge is the only merge method used
