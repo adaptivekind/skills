@@ -15,7 +15,9 @@ jobs:
     
     - name: Install bats-core
       run: |
-        npm install -g bats
+        git clone https://github.com/bats-core/bats-core.git /tmp/bats-core
+        cd /tmp/bats-core
+        sudo ./install.sh /usr/local
     
     - name: Run tests
       run: make test

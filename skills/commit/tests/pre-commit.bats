@@ -21,14 +21,14 @@ setup() {
     # Disable GPG signing for test commits (we test the script logic, not actual signing)
     git config commit.gpgsign false
     
-    # Copy the script to test location
-    cp /Users/ian/projects/my/skills/skills/commit/scripts/pre-commit.sh .
+    # Copy the script to test location (use BATS_TEST_DIRNAME for portability)
+    cp "${BATS_TEST_DIRNAME}/../scripts/pre-commit.sh" .
     chmod +x pre-commit.sh
 }
 
 teardown() {
     # Clean up temporary directory
-    cd /Users/ian/projects/my/skills
+    cd "$BATS_TEST_DIRNAME"
     rm -rf "$TEST_DIR"
 }
 
