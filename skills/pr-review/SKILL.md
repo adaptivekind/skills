@@ -20,6 +20,8 @@ This skill performs a thorough review of a pull request to verify its quality an
 
 ## Instructions
 
+**IMPORTANT: This skill automatically posts the review to the PR in Step 7. You MUST execute Step 7 to post the review before considering the review complete.**
+
 ### Step 1: Verify gh is Authenticated
 
 Check if gh is authenticated:
