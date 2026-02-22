@@ -58,3 +58,17 @@ When testing skills:
 - Ensure error handling is proper
 - Test with various edge cases
 - If the skill has scripts, test scripts independently
+
+## CI/CD Workflows
+
+GitHub Actions workflows should use lower kebab-case naming:
+
+- **File naming**: `.github/workflows/<workflow-name>.yml`
+- **Workflow name field**: Use lower kebab-case (e.g., `name: tests`, not `name: Tests`)
+
+Example:
+```yaml
+name: tests
+```
+
+This convention ensures consistency across all workflow files.
