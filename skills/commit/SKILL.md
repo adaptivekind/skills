@@ -21,107 +21,46 @@ This skill creates a signed commit with the current changes in the repository.
 
 ## Instructions
 
-### Step 1: Verify GPG Signing is Configured
+### Step 1: Run Pre-Commit Script
 
-Run the following command to verify GPG signing is configured:
-
-```bash
-git config user.email
-git config user.signingkey
-```
-
-If either command returns empty, fail with error: "GPG signing is not configured. Please set git config user.email and git config user.signingkey"
-
-### Step 2: Check Current Branch
-
-Determine the current branch name:
+Run the pre-commit script to verify GPG signing and handle branch creation:
 
 ```bash
-CURRENT_BRANCH=$(git branch --show-current)
+./scripts/pre-commit.sh [optional_branch_prefix]
 ```
 
-If in detached HEAD state (empty result), use the current HEAD ref:
+This script will:
+1. Verify GPG signing is configured
+2. Check current branch
+3. Create semantic branch if on main/master
+4. Check for changes to commit
+
+If the script exits with an error, fail with the error message.
+
+### Step 2: Stage All Changes
+
+Stage all changes:
+
 ```bash
-if [ -z "$CURRENT_BRANCH" ]; then
-    CURRENT_BRANCH=$(git rev-parse HEAD)
-fi
+git add -A
 ```
 
-### Step 3: Handle Branch Creation (if on main or master)
+### Step 3: Create Signed Commit
 
-If the current branch is `main` or `master`, or if in detached HEAD state:
+**Option A: Let git open editor**
+```bash
+git commit -S
+```
 
-1. First, check if there are any commits in the repository:
-   ```bash
-   if git rev-parse --verify HEAD >/dev/null 2>&1; then
-       SHA=$(git rev-parse --short HEAD)
-   else
-       SHA="initial"
-   fi
-   ```
+**Option B: Use message from user or default**
+If the user provided a commit message, use:
+```bash
+git commit -S -m "Your commit message here"
+```
 
-2. Generate a semantic branch name based on the changes:
-   - Analyze the staged/unstaged changes to determine the type:
-     ```bash
-     # Detect change type from file paths
-     CHANGED_FILES=$(git diff --name-only)
-     if echo "$CHANGED_FILES" | grep -q "skills/"; then
-         TYPE="skill"
-     elif echo "$CHANGED_FILES" | grep -qE "\.(test|spec)\."; then
-         TYPE="test"
-     elif echo "$CHANGED_FILES" | grep -qE "^docs/|README|CHANGELOG"; then
-         TYPE="docs"
-     else
-         TYPE="update"
-     fi
-     ```
+If no message provided, use a default descriptive message like "Update changes" or similar appropriate message based on the changes.
 
-   - Generate branch name:
-     ```bash
-     # If user provided a branch name prefix, use it; otherwise use change type
-     if [ -n "$BRANCH_PREFIX" ]; then
-         BRANCH_NAME="$BRANCH_PREFIX"
-     else
-         # Convert first word of commit message to slug, or use type
-         COMMIT_MSG=$(git diff --staged --quiet && git diff --cached --quiet && echo "update" || git diff --name-only | head -1 | xargs dirname | sed 's|.*/||' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-         BRANCH_NAME="$TYPE/$(date +%Y%m%d)-$COMMIT_MSG"
-     fi
-     ```
-
-3. Create and switch to the new branch:
-   ```bash
-   git checkout -b "$BRANCH_NAME"
-   ```
-
-### Step 4: Check for Changes and Stage
-
-1. First, determine if there are any changes to commit:
-   ```bash
-   git diff --quiet && git diff --cached --quiet
-   ```
-   If this succeeds (exit code 0), there are no changes to commit. Fail with appropriate message.
-
-2. Stage all changes:
-   ```bash
-   git add -A
-   ```
-
-### Step 5: Create Signed Commit
-
-   **Option A: Let git open editor**
-   ```bash
-   git commit -S
-   ```
-
-   **Option B: Use message from user or default**
-   If the user provided a commit message, use:
-   ```bash
-   git commit -S -m "Your commit message here"
-   ```
-   
-   If no message provided, use a default descriptive message like "Update changes" or similar appropriate message based on the changes.
-
-### Step 6: Verify Commit is Signed
+### Step 4: Verify Commit is Signed
 
 Verify the commit was created and is signed:
 ```bash
@@ -141,3 +80,4 @@ If the commit is not signed, fail with error: "Commit was not signed properly"
 - Always use `-S` flag with git commit to enable GPG signing
 - The commit MUST be signed - do not proceed if signing fails
 - This skill works with local repositories only
+- See `scripts/pre-commit.sh` for the deterministic pre-commit logic
