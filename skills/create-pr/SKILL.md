@@ -31,7 +31,58 @@ gh auth status
 
 If not authenticated, fail with error: "GitHub CLI is not authenticated. Run 'gh auth login' first."
 
-### Step 2: Get Current Branch and Base Branch
+### Step 2: Commit Uncommitted Changes
+
+Check if there are uncommitted changes:
+```bash
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Uncommitted changes detected. Running commit skill..."
+
+    # Commit skill steps:
+    # 1. Verify GPG signing
+    git config user.email || fail "GPG signing not configured"
+    git config user.signingkey || fail "GPG signing not configured"
+
+    # 2. Check current branch
+    CURRENT=$(git branch --show-current)
+    if [ "$CURRENT" = "main" ] || [ "$CURRENT" = "master" ] || [ -z "$CURRENT" ]; then
+        # Create semantic branch name
+        TYPE="update"
+        if git diff --name-only | grep -q "skills/"; then TYPE="skill"; fi
+        BRANCH_NAME="$TYPE/$(date +%Y%m%d)-$(git diff --name-only | head -1 | xargs basename | sed 's/\.[^.]*$//' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')"
+        git checkout -b "$BRANCH_NAME"
+    fi
+
+    # 3. Stage and commit
+    git add -A
+    git commit -S -m "Your commit message" || git commit -S  # Use message or open editor
+fi
+```
+
+### Step 3: Push Unpushed Commits
+
+Check if there are commits not on remote:
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+    if git log origin/$CURRENT_BRANCH..HEAD --oneline 2>/dev/null | grep -q .; then
+        echo "Unpushed commits detected. Running push skill..."
+
+        # Push skill steps:
+        # 1. Verify GPG signing
+        git config user.signingkey || fail "GPG signing not configured"
+
+        # 2. Verify all commits are signed
+        UNSIGNED=$(git log $CURRENT_BRANCH --not --remotes --format=%G? | grep -v G | grep -v '^$')
+        if [ -n "$UNSIGNED" ]; then fail "There are unsigned commits"; fi
+
+        # 3. Push
+        git push -u origin $CURRENT_BRANCH
+    fi
+fi
+```
+
+### Step 4: Get Current Branch and Base Branch
 
 Get the current branch:
 ```bash
@@ -46,7 +97,7 @@ if [ -z "$BASE_BRANCH" ]; then
 fi
 ```
 
-### Step 3: Check for Remote
+### Step 5: Check for Remote
 
 Verify remote is configured:
 ```bash
@@ -55,7 +106,7 @@ git remote get-url origin
 
 If no remote, fail with error: "No remote configured. Please add a remote with 'git remote add origin <url>'"
 
-### Step 4: Get Commit Summary
+### Step 6: Get Commit Summary
 
 Get the commits that will be in the PR:
 ```bash
@@ -64,7 +115,7 @@ COMMITS_SUMMARY=$(git log ${BASE_BRANCH}..HEAD --oneline)
 
 If no commits, fail with error: "No commits to create a PR. Commit your changes first."
 
-### Step 5: Create the PR
+### Step 7: Create the PR
 
 1. If user provided a title and description, use them:
    ```bash
