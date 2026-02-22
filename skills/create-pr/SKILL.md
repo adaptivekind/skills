@@ -70,15 +70,37 @@ If no commits, fail with error: "No commits to create a PR. Commit your changes 
    gh pr create --title "Your Title" --body "Your description"
    ```
 
-2. If no title provided, use a default:
-   - Get the first commit message as title
-   - Get the diff stat as description
+2. If no title provided, generate a PR summary:
 
+   **Title**: First commit message
    ```bash
    TITLE=$(git log -1 --format=%s)
-   BODY=$(git diff ${BASE_BRANCH}...HEAD --stat | head -20)
+   ```
+
+   **Description**: Build a comprehensive PR summary:
+   ```bash
+   # Get commit messages
+   COMMITS=$(git log ${BASE_BRANCH}..HEAD --format="- %s (%h)" | head -10)
+
+   # Get file changes
+   FILE_CHANGES=$(git diff ${BASE_BRANCH}...HEAD --stat)
+
+   # Build body
+   BODY="## Summary
+   $COMMITS
+
+   ## Changes
+   \`\`\`
+   $FILE_CHANGES
+   \`\`\`
+   "
+
    gh pr create --title "$TITLE" --body "$BODY"
    ```
+
+   The summary includes:
+   - List of commits with short hashes
+   - File change statistics (additions/deletions)
 
 ### Step 6: Confirm PR Creation
 
