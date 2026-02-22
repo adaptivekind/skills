@@ -81,3 +81,38 @@ If the commit is not signed, fail with error: "Commit was not signed properly"
 - The commit MUST be signed - do not proceed if signing fails
 - This skill works with local repositories only
 - See `scripts/pre-commit.sh` for the deterministic pre-commit logic
+
+## Testing
+
+This skill includes a comprehensive test suite using [bats-core](https://github.com/bats-core/bats-core).
+
+### Running Tests
+
+**Run all skill tests:**
+```bash
+make test
+```
+
+**Run only commit skill tests:**
+```bash
+make test-commit
+```
+
+**Run specific test file:**
+```bash
+bats skills/commit/tests/pre-commit.bats
+```
+
+### Test Coverage
+
+The test suite (`tests/pre-commit.bats`) includes:
+- GPG signing configuration validation
+- Branch creation on main/master
+- Semantic branch naming (skill/, test/, docs/, update/ prefixes)
+- Custom branch prefix support
+- Detached HEAD state handling
+- No changes handling
+
+### Test Structure
+
+Tests use isolated temporary git repositories created in `setup()` and cleaned up in `teardown()` to ensure test isolation.
