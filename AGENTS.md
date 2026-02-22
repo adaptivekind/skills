@@ -59,6 +59,16 @@ When testing skills:
 - Test with various edge cases
 - If the skill has scripts, test scripts independently
 
+### Test Documentation
+
+Each skill should have testing documentation in a `TEST.md` file within the skill directory:
+
+- **Location**: `skills/<skill>/TEST.md`
+- **Content**: Testing instructions, test coverage details, how to run tests
+- **Example**: See `skills/commit/TEST.md`
+
+This separates testing details (for developers) from the main skill documentation (for users).
+
 ## CI/CD Workflows
 
 GitHub Actions workflows should use lower kebab-case naming:
