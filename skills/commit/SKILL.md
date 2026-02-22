@@ -47,18 +47,60 @@ git add -A
 
 ### Step 3: Create Signed Commit
 
-**Option A: Let git open editor**
+Create a commit with a message based on the changes being made. Analyze the staged files to generate an appropriate commit message:
+
 ```bash
-git commit -S
+# Analyze what changed and create appropriate message
+CHANGED_FILES=$(git diff --cached --name-only)
+ADDED_FILES=$(git diff --cached --name-only --diff-filter=A)
+MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=M)
+DELETED_FILES=$(git diff --cached --name-only --diff-filter=D)
+
+# Create commit message based on changes
+if [ -n "$ADDED_FILES" ] && [ -z "$MODIFIED_FILES" ] && [ -z "$DELETED_FILES" ]; then
+    # Only additions
+    if echo "$ADDED_FILES" | grep -q "^skills/"; then
+        COMMIT_MSG="Add $(echo "$ADDED_FILES" | head -1 | xargs basename)"
+    elif echo "$ADDED_FILES" | grep -q "^\.github/workflows/"; then
+        COMMIT_MSG="Add GitHub Actions workflow"
+    elif echo "$ADDED_FILES" | grep -q "^docs/\|README\|DEVELOP\|HISTORY"; then
+        COMMIT_MSG="Add documentation: $(echo "$ADDED_FILES" | head -1 | xargs basename)"
+    else
+        COMMIT_MSG="Add $(echo "$ADDED_FILES" | head -1 | xargs basename)"
+    fi
+elif [ -n "$MODIFIED_FILES" ] && [ -z "$ADDED_FILES" ] && [ -z "$DELETED_FILES" ]; then
+    # Only modifications
+    if echo "$MODIFIED_FILES" | grep -q "^skills/"; then
+        SKILL_NAME=$(echo "$MODIFIED_FILES" | grep "^skills/" | head -1 | cut -d'/' -f2)
+        COMMIT_MSG="Update $SKILL_NAME skill"
+    elif echo "$MODIFIED_FILES" | grep -q "\.md$"; then
+        COMMIT_MSG="Update documentation"
+    elif echo "$MODIFIED_FILES" | grep -q "^\.github/"; then
+        COMMIT_MSG="Update GitHub Actions configuration"
+    else
+        COMMIT_MSG="Update $(echo "$MODIFIED_FILES" | head -1 | xargs basename)"
+    fi
+elif [ -n "$DELETED_FILES" ] && [ -z "$ADDED_FILES" ] && [ -z "$MODIFIED_FILES" ]; then
+    # Only deletions
+    COMMIT_MSG="Remove $(echo "$DELETED_FILES" | head -1 | xargs basename)"
+else
+    # Mixed changes
+    if echo "$CHANGED_FILES" | grep -q "^skills/"; then
+        COMMIT_MSG="Update skills configuration and implementation"
+    elif echo "$CHANGED_FILES" | grep -q "^\.github/"; then
+        COMMIT_MSG="Update CI/CD and repository configuration"
+    elif echo "$CHANGED_FILES" | grep -q "\.md$"; then
+        COMMIT_MSG="Update documentation"
+    else
+        COMMIT_MSG="Update repository files"
+    fi
+fi
+
+# Create the signed commit with the generated message
+git commit -S -m "$COMMIT_MSG"
 ```
 
-**Option B: Use message from user or default**
-If the user provided a commit message, use:
-```bash
-git commit -S -m "Your commit message here"
-```
-
-If no message provided, use a default descriptive message like "Update changes" or similar appropriate message based on the changes.
+The commit message should be concise but descriptive, based on what files were changed and the nature of the changes.
 
 ### Step 4: Verify Commit is Signed
 
