@@ -35,7 +35,7 @@ def find_project_root():
 
 sys.path.insert(0, find_project_root())
 
-from skills.git import Git
+from common.git import Git
 
 RED = '\033[0;31m'
 GREEN = '\033[0;32m'

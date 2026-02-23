@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for skills.git.Git class
+Tests for common.git.Git class
 """
 
 import os
@@ -19,7 +19,7 @@ def git_repo(tmp_path):
 
 @pytest.fixture
 def git(git_repo):
-    from skills.git import Git
+    from common.git import Git
     return Git(cwd=str(git_repo))
 
 
