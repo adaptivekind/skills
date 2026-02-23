@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Test suite for pre-commit.sh script
+# Test suite for pre-commit.py script
 #
 # These tests verify the deterministic pre-commit logic including:
 # - GPG signing verification
@@ -22,8 +22,8 @@ setup() {
     git config commit.gpgsign false
     
     # Copy the script to test location (use BATS_TEST_DIRNAME for portability)
-    cp "${BATS_TEST_DIRNAME}/../scripts/pre-commit.sh" .
-    chmod +x pre-commit.sh
+    cp "${BATS_TEST_DIRNAME}/../scripts/pre-commit.py" .
+    chmod +x pre-commit.py
 }
 
 teardown() {
@@ -46,7 +46,7 @@ teardown() {
     echo "new content" >> file.txt
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"GPG signing configured"* ]]
 }
@@ -66,7 +66,7 @@ teardown() {
     echo "new content" > skills/test/file.txt
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detected change type: skill"* ]]
     [[ "$output" == *"Created and switched to branch"* ]]
@@ -90,7 +90,7 @@ teardown() {
     echo "new content" > app.test.js
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detected change type: test"* ]]
     
@@ -114,7 +114,7 @@ teardown() {
     echo "new content" > docs/README.md
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detected change type: docs"* ]]
     
@@ -137,7 +137,7 @@ teardown() {
     echo "new content" > random.txt
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detected change type: update"* ]]
     
@@ -161,7 +161,7 @@ teardown() {
     echo "new content" > file.txt
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"On main/master"* ]]
     
@@ -184,7 +184,7 @@ teardown() {
     echo "new content" > file.txt
     
     # Run script with custom prefix
-    run ./pre-commit.sh "feature/custom-branch"
+    run ./pre-commit.py "feature/custom-branch"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Creating branch: feature/custom-branch"* ]]
     
@@ -210,7 +210,7 @@ teardown() {
     echo "new content" > file.txt
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"Current branch: feature/existing-branch"* ]]
     [[ "$output" != *"Creating feature branch"* ]]
@@ -242,7 +242,7 @@ teardown() {
     echo "detached change" > new_file.txt
     
     # Run script
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detached HEAD state detected"* ]]
     [[ "$output" == *"Creating feature branch"* ]]
@@ -259,7 +259,7 @@ teardown() {
     git commit -m "Initial commit"
     
     # Run script without any changes
-    run ./pre-commit.sh
+    run ./pre-commit.py
     [ "$status" -eq 0 ]
     [[ "$output" == *"No changes to commit"* ]]
 }

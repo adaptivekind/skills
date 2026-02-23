@@ -10,7 +10,7 @@ This is a skills package containing reusable agent skills that can be installed 
 
 ### commit
 - **Location**: `skills/commit/SKILL.md`
-- **Scripts**: `skills/commit/scripts/pre-commit.sh`
+- **Scripts**: `skills/commit/scripts/pre-commit.py`, `skills/commit/scripts/uncommitted-changes.py`
 - **Purpose**: Creates signed commits in local git repositories
 - **Usage**: Triggered when user asks to commit changes
 

@@ -26,7 +26,7 @@ This skill creates a signed commit with the current changes in the repository.
 Run the pre-commit script to verify GPG signing and handle branch creation:
 
 ```bash
-./scripts/pre-commit.sh [optional_branch_prefix]
+python3 ./scripts/pre-commit.py [optional_branch_prefix]
 ```
 
 This script will:
@@ -50,7 +50,7 @@ git add -A
 First, run the uncommitted changes script to see what has been modified:
 
 ```bash
-./scripts/uncommitted-changes.sh
+python3 ./scripts/uncommitted-changes.py
 ```
 
 This script displays all local changes including staged files, unstaged modifications, and untracked files.
@@ -135,5 +135,5 @@ If the commit is not signed, fail with error: "Commit was not signed properly"
 - Always use `-S` flag with git commit to enable GPG signing
 - The commit MUST be signed - do not proceed if signing fails
 - This skill works with local repositories only
-- See `scripts/pre-commit.sh` for the deterministic pre-commit logic
-- See `scripts/uncommitted-changes.sh` to view all uncommitted changes (works in any repository)
+- See `scripts/pre-commit.py` for the deterministic pre-commit logic
+- See `scripts/uncommitted-changes.py` to view all uncommitted changes (works in any repository)
