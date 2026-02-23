@@ -247,8 +247,13 @@ Capture code quality findings in variables:
 Compile findings into a review and post it to the PR:
 
 ```bash
+# Get the AI model being used
+AI_MODEL="${OPENCODE_MODEL:-Kimi K2.5}"
+
 # Build the review summary with actual findings
 REVIEW_SUMMARY="## PR Review Summary
+
+*Reviewed by: $AI_MODEL*
 
 ### Summary Alignment
 $SUMMARY_FINDINGS
