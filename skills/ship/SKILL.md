@@ -326,7 +326,7 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     PREVIOUS_COST=""
     COST_DELTA=""
     
-    # Get current token data
+    # Get all current metrics
     INPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.input_tokens')
     OUTPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.output_tokens')
     CACHE_READ=$(echo "$COST_DATA" | jq -r '.cache_read')
@@ -334,12 +334,15 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     AI_MODEL="${OPENCODE_MODEL:-Kimi K2.5}"
     
     if [ -f "$PREVIOUS_COST_FILE" ]; then
-        # Read previous checkpoint data (format: cost|input_tokens)
+        # Read previous checkpoint data (format: cost|input|output|cache_read|cache_write)
         PREVIOUS_DATA=$(cat "$PREVIOUS_COST_FILE")
         PREVIOUS_COST=$(echo "$PREVIOUS_DATA" | cut -d'|' -f1 | sed 's/[^0-9.]//g')
-        PREVIOUS_INPUT_TOKENS=$(echo "$PREVIOUS_DATA" | cut -d'|' -f2)
+        PREVIOUS_INPUT=$(echo "$PREVIOUS_DATA" | cut -d'|' -f2)
+        PREVIOUS_OUTPUT=$(echo "$PREVIOUS_DATA" | cut -d'|' -f3)
+        PREVIOUS_CACHE_READ=$(echo "$PREVIOUS_DATA" | cut -d'|' -f4)
+        PREVIOUS_CACHE_WRITE=$(echo "$PREVIOUS_DATA" | cut -d'|' -f5)
         
-        # Calculate delta
+        # Calculate cost delta
         if command -v bc &> /dev/null; then
             COST_DELTA=$(echo "$CURRENT_COST - $PREVIOUS_COST" | bc)
         else
@@ -363,8 +366,12 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     # Add deltas if available
     if [ -n "$COST_DELTA" ] && [ "$COST_DELTA" != "N/A" ]; then
         COST_REPORT="$COST_REPORT
-**PR Cost (Delta):** \$$COST_DELTA
-**Input Tokens (Delta):** $INPUT_TOKENS (from previous checkpoint)
+**Deltas (from previous checkpoint):**
+- Cost: \$$COST_DELTA
+- Input Tokens: $INPUT_TOKENS (was $PREVIOUS_INPUT)
+- Output Tokens: $OUTPUT_TOKENS (was $PREVIOUS_OUTPUT)
+- Cache Read: $CACHE_READ (was $PREVIOUS_CACHE_READ)
+- Cache Write: $CACHE_WRITE (was $PREVIOUS_CACHE_WRITE)
 "
     fi
     
@@ -372,9 +379,9 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     gh pr comment $PR_NUMBER --body "$COST_REPORT"
     echo "Cost information posted to PR #$PR_NUMBER"
     
-    # Save current cost and input tokens as checkpoint for next PR (format: cost|input_tokens)
-    echo "$CURRENT_COST|$INPUT_TOKENS" > "$PREVIOUS_COST_FILE"
-    echo "Cost checkpoint saved: \$$CURRENT_COST, Input: $INPUT_TOKENS"
+    # Save all metrics as checkpoint for next PR (format: cost|input|output|cache_read|cache_write)
+    echo "$CURRENT_COST|$INPUT_TOKENS|$OUTPUT_TOKENS|$CACHE_READ|$CACHE_WRITE" > "$PREVIOUS_COST_FILE"
+    echo "Checkpoint saved: Cost=\$$CURRENT_COST, Input=$INPUT_TOKENS, Output=$OUTPUT_TOKENS, CacheRead=$CACHE_READ, CacheWrite=$CACHE_WRITE"
 else
     echo "Cost-check skill not available - skipping cost reporting"
 fi
