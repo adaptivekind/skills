@@ -42,7 +42,8 @@ class TestGit:
         (git_repo / 'file.txt').write_text('content')
         subprocess.run(['git', 'add', '.'], cwd=git_repo, check=True, capture_output=True)
         subprocess.run(['git', 'commit', '-m', 'init'], cwd=git_repo, check=True, capture_output=True)
-        assert git.branch_show_current() == 'main'
+        branch = git.branch_show_current()
+        assert branch in ('main', 'master')
     
     def test_branch_show_current_after_rename(self, git, git_repo):
         (git_repo / 'file.txt').write_text('content')

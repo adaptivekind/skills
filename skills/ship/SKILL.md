@@ -166,25 +166,39 @@ echo "Checking workflow status..."
 # Wait for checks to complete (with timeout)
 MAX_WAIT=300  # 5 minutes
 WAITED=0
+WORKFLOWS_PASSED=false
+
 while [ $WAITED -lt $MAX_WAIT ]; do
-    # Get check status
-    CHECK_STATUS=$(gh pr view $PR_NUMBER --json statusCheckRollup --jq '.statusCheckRollup.state' 2>/dev/null || echo "UNKNOWN")
+    # Get check status - get all check runs and their conclusions
+    CHECK_DATA=$(gh pr view $PR_NUMBER --json statusCheckRollup 2>/dev/null)
     
-    if [ "$CHECK_STATUS" = "SUCCESS" ]; then
-        echo "All workflows passed"
-        WORKFLOWS_PASSED=true
-        break
-    elif [ "$CHECK_STATUS" = "FAILURE" ] || [ "$CHECK_STATUS" = "ERROR" ]; then
-        echo "Some workflows failed"
+    if [ -z "$CHECK_DATA" ] || [ "$CHECK_DATA" = "null" ]; then
+        echo "No checks found yet, waiting..."
+        sleep 10
+        WAITED=$((WAITED + 10))
+        continue
+    fi
+    
+    # Check if we have any failing checks
+    FAILURE_COUNT=$(echo "$CHECK_DATA" | jq '[.statusCheckRollup[] | select(.conclusion == "FAILURE")] | length' 2>/dev/null || echo "0")
+    ERROR_COUNT=$(echo "$CHECK_DATA" | jq '[.statusCheckRollup[] | select(.conclusion == "ERROR")] | length' 2>/dev/null || echo "0")
+    
+    # Check if all checks are complete
+    PENDING_COUNT=$(echo "$CHECK_DATA" | jq '[.statusCheckRollup[] | select(.status != "COMPLETED")] | length' 2>/dev/null || echo "0")
+    
+    if [ "$FAILURE_COUNT" -gt 0 ] || [ "$ERROR_COUNT" -gt 0 ]; then
+        echo "Workflows failed! Failure: $FAILURE_COUNT, Error: $ERROR_COUNT"
         WORKFLOWS_PASSED=false
+        # Show failed checks
+        echo "$CHECK_DATA" | jq -r '.statusCheckRollup[] | select(.conclusion == "FAILURE" or .conclusion == "ERROR") | "\(.name): \(.conclusion)"'
         break
-    elif [ "$CHECK_STATUS" = "PENDING" ] || [ "$CHECK_STATUS" = "UNKNOWN" ]; then
-        echo "Workflows still running... waiting 10s"
+    elif [ "$PENDING_COUNT" -gt 0 ]; then
+        echo "Workflows still running ($PENDING_COUNT pending)... waiting 10s"
         sleep 10
         WAITED=$((WAITED + 10))
     else
-        # No checks found or empty status
-        echo "No workflow checks found or status unknown"
+        # All checks completed and none failed
+        echo "All workflows passed"
         WORKFLOWS_PASSED=true
         break
     fi
@@ -193,6 +207,14 @@ done
 if [ $WAITED -ge $MAX_WAIT ]; then
     echo "Timeout waiting for workflows"
     WORKFLOWS_PASSED=false
+fi
+
+# Exit if workflows failed - NEVER merge with failing checks
+if [ "$WORKFLOWS_PASSED" != true ]; then
+    echo ""
+    echo "ERROR: Workflows did not pass!"
+    echo "Merge ABORTED. Please fix the failing tests and try again."
+    exit 1
 fi
 ```
 
@@ -424,9 +446,9 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     echo "✓ Cost report verified"
 fi
 
-# Verify Workflows Passed
+# Verify Workflows Passed (defense in depth - should already be checked in Step 6)
 if [ "$WORKFLOWS_PASSED" != true ]; then
-    echo "ERROR: Workflows did not pass! You must wait for all checks to complete."
+    echo "ERROR: Workflows did not pass! This should have been caught in Step 6."
     echo "Merge ABORTED."
     exit 1
 fi
