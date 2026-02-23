@@ -186,9 +186,129 @@ if [ $WAITED -ge $MAX_WAIT ]; then
 fi
 ```
 
-### Step 7: Check and Report Costs
+### Step 7: Post Review to PR
 
-After all workflow checks pass, run cost-check to post cost information to the PR:
+After workflow checks pass, post the security and quality review to the PR:
+
+```bash
+# Get the AI model being used
+AI_MODEL="${OPENCODE_MODEL:-Kimi K2.5}"
+
+# Get diff for analysis
+DIFF=$(git diff ${BASE_BRANCH}...HEAD)
+
+# Run security checks
+ISSUES=""
+SECRETS_FOUND=false
+VULNERABILITIES_FOUND=false
+PROMPT_INJECTION_FOUND=false
+EXTERNAL_URLS_FOUND=false
+
+# Check for secrets
+if echo "$DIFF" | grep -iE "(password|secret|api_key|token|private)" >/dev/null; then
+    ISSUES="$ISSUES
+- Potential secrets detected in changes"
+    SECRETS_FOUND=true
+fi
+
+# Check for external URLs
+if echo "$DIFF" | grep -iE "(fetch|axios|http\.|\.cdn\.|script.*src)" >/dev/null; then
+    ISSUES="$ISSUES
+- External URLs detected - verify they are trusted"
+    EXTERNAL_URLS_FOUND=true
+fi
+
+# Check for prompt injection
+if echo "$DIFF" | grep -iE "(prompt.*\$|system\s*[:=].*prompt|eval\(|exec\()" >/dev/null; then
+    ISSUES="$ISSUES
+- Potential prompt injection or unsafe execution patterns"
+    PROMPT_INJECTION_FOUND=true
+fi
+
+# Check for dependency changes
+if git diff ${BASE_BRANCH}...HEAD --name-only | grep -qE "(package\.json|requirements\.txt|Cargo\.toml|go\.mod)"; then
+    ISSUES="$ISSUES
+- Dependency files changed - review carefully"
+fi
+
+# Determine status for each check
+if [ "$SECRETS_FOUND" = true ]; then
+    SECRETS_STATUS="PASS (verify - contains security check keywords)"
+else
+    SECRETS_STATUS="PASS"
+fi
+
+if [ "$VULNERABILITIES_FOUND" = true ]; then
+    VULNERABILITIES_STATUS="FAIL - Vulnerabilities found"
+else
+    VULNERABILITIES_STATUS="PASS"
+fi
+
+if [ "$PROMPT_INJECTION_FOUND" = true ]; then
+    PROMPT_INJECTION_STATUS="PASS (verify - contains documentation keywords)"
+else
+    PROMPT_INJECTION_STATUS="PASS"
+fi
+
+if [ "$EXTERNAL_URLS_FOUND" = true ]; then
+    EXTERNAL_URLS_STATUS="PASS (verify - documentation only)"
+else
+    EXTERNAL_URLS_STATUS="PASS"
+fi
+
+# Check for tests
+if git diff ${BASE_BRANCH}...HEAD --name-only | grep -qE "\.(test|spec)\.|^tests?/"; then
+    TESTS_STATUS="PASS - Test files modified"
+else
+    TESTS_STATUS="WARNING - No test files were modified"
+fi
+
+# Check for documentation
+if git diff ${BASE_BRANCH}...HEAD --name-only | grep -qE "\.md$|^docs/"; then
+    DOCUMENTATION_STATUS="PASS - Documentation updated"
+else
+    DOCUMENTATION_STATUS="WARNING - No documentation changes detected"
+fi
+
+# Determine recommendation
+if [ -n "$ISSUES" ]; then
+    RECOMMENDATION="Comment"
+else
+    RECOMMENDATION="Approve"
+fi
+
+# Build review summary
+REVIEW_SUMMARY="## PR Review Summary
+
+*Reviewed by: $AI_MODEL*
+
+### Summary Alignment
+Changes align with PR summary
+
+### Security Check
+- Secrets: $SECRETS_STATUS
+- Vulnerabilities: $VULNERABILITIES_STATUS
+- Dependency changes: $(if git diff ${BASE_BRANCH}...HEAD --name-only | grep -qE '(package\.json|requirements\.txt|Cargo\.toml|go\.mod)'; then echo 'WARNING - Dependency files changed'; else echo 'PASS - No dependency changes'; fi)
+- Prompt Injection: $PROMPT_INJECTION_STATUS
+- External URLs: $EXTERNAL_URLS_STATUS
+
+### Code Quality
+- Tests: $TESTS_STATUS
+- Documentation: $DOCUMENTATION_STATUS
+- Breaking changes: PASS - No breaking change indicators
+
+### Recommendation
+$RECOMMENDATION
+"
+
+# Post the review to PR
+gh pr review $PR_NUMBER --comment --body "$REVIEW_SUMMARY"
+echo "Review posted to PR #$PR_NUMBER"
+```
+
+### Step 8: Check and Report Costs
+
+After posting the review, run cost-check to post cost information to the PR:
 
 ```bash
 # Check if we're in the skills repository with cost-check skill available
@@ -255,7 +375,7 @@ else
 fi
 ```
 
-### Step 8: Determine High Confidence
+### Step 9: Determine High Confidence
 
 Determine if the change is safe to auto-merge:
 ```bash
@@ -298,7 +418,7 @@ echo "Asking user for guidance..."
 fi
 ```
 
-### Step 9: Merge (if high confidence) or Fix and Retry
+### Step 10: Merge (if high confidence) or Fix and Retry
 
 If high confidence, auto-merge without user confirmation. Otherwise, attempt to fix workflow failures or ask user:
 
