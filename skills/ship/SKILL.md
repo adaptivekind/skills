@@ -367,11 +367,11 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     if [ -n "$COST_DELTA" ] && [ "$COST_DELTA" != "N/A" ]; then
         COST_REPORT="$COST_REPORT
 **Deltas (from previous checkpoint):**
-- Cost: \$$COST_DELTA
-- Input Tokens: $INPUT_TOKENS (was $PREVIOUS_INPUT)
-- Output Tokens: $OUTPUT_TOKENS (was $PREVIOUS_OUTPUT)
-- Cache Read: $CACHE_READ (was $PREVIOUS_CACHE_READ)
-- Cache Write: $CACHE_WRITE (was $PREVIOUS_CACHE_WRITE)
+- Cost: \$$COST_DELTA (from \$$PREVIOUS_COST to \$$CURRENT_COST)
+- Input Tokens: $INPUT_TOKENS (from $PREVIOUS_INPUT to $INPUT_TOKENS)
+- Output Tokens: $OUTPUT_TOKENS (from $PREVIOUS_OUTPUT to $OUTPUT_TOKENS)
+- Cache Read: $CACHE_READ (from $PREVIOUS_CACHE_READ to $CACHE_READ)
+- Cache Write: $CACHE_WRITE (from $PREVIOUS_CACHE_WRITE to $CACHE_WRITE)
 "
     fi
     
