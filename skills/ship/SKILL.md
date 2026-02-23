@@ -7,6 +7,15 @@ description: Commits, pushes, creates PR, reviews, and merges to main with safet
 
 This skill automates the complete workflow: commit changes, push, create PR, review, and merge if approved.
 
+## ⚠️ IMPORTANT: All Steps Are MANDATORY
+
+This skill includes mandatory safety checks that MUST be completed before merging:
+1. **PR Review** - Security and quality review must be posted to the PR
+2. **Cost Report** - Cost information must be posted to the PR
+3. **Workflow Checks** - All CI workflows must pass
+
+**NEVER skip these steps or merge directly using `git push` or `gh pr merge`**
+
 ## When to Use
 
 - User asks to apply changes
@@ -18,6 +27,7 @@ This skill automates the complete workflow: commit changes, push, create PR, rev
 - Git must be installed
 - GPG signing must be configured
 - GitHub CLI (`gh`) must be installed and authenticated
+- pytest must be installed (for running tests)
 
 ## Instructions
 
@@ -387,7 +397,47 @@ else
 fi
 ```
 
-### Step 9: Determine High Confidence
+### Step 9: Validate Safety Checks Completed
+
+⚠️ **CRITICAL: Verify all safety checks were completed before proceeding**
+
+```bash
+# Verify PR Review was posted
+echo "Validating PR review was posted..."
+REVIEW_COUNT=$(gh pr comment list $PR_NUMBER --json author --jq '[.[] | select(.author.login != "github-actions[bot]")] | length')
+if [ "$REVIEW_COUNT" -eq 0 ]; then
+    echo "ERROR: No PR review found! You MUST run Step 7 (Post Review to PR) before merging."
+    echo "Merge ABORTED. Please run the full ship workflow with all steps."
+    exit 1
+fi
+echo "✓ PR review verified"
+
+# Verify Cost Report was posted
+echo "Validating cost report was posted..."
+if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
+    COST_COMMENT=$(gh pr comment list $PR_NUMBER --json body --jq '[.[] | select(.body | contains("Cost Report"))] | length')
+    if [ "$COST_COMMENT" -eq 0 ]; then
+        echo "ERROR: No cost report found! You MUST run Step 8 (Check and Report Costs) before merging."
+        echo "Merge ABORTED. Please run the full ship workflow with all steps."
+        exit 1
+    fi
+    echo "✓ Cost report verified"
+fi
+
+# Verify Workflows Passed
+if [ "$WORKFLOWS_PASSED" != true ]; then
+    echo "ERROR: Workflows did not pass! You must wait for all checks to complete."
+    echo "Merge ABORTED."
+    exit 1
+fi
+echo "✓ Workflows passed"
+
+echo ""
+echo "All safety checks validated successfully!"
+echo ""
+```
+
+### Step 10: Determine High Confidence
 
 Determine if the change is safe to auto-merge:
 ```bash
@@ -430,7 +480,7 @@ echo "Asking user for guidance..."
 fi
 ```
 
-### Step 10: Merge (if high confidence) or Fix and Retry
+### Step 11: Merge (if high confidence) or Fix and Retry
 
 If high confidence, auto-merge without user confirmation. Otherwise, attempt to fix workflow failures or ask user:
 
