@@ -4,7 +4,7 @@ This document describes how to test the commit skill.
 
 ## Test Suite
 
-This skill includes a comprehensive test suite using [bats-core](https://github.com/bats-core/bats-core).
+This skill includes a comprehensive test suite using [pytest](https://docs.pytest.org/).
 
 ### Running Tests
 
@@ -20,12 +20,12 @@ make test-commit
 
 **Run specific test file:**
 ```bash
-bats skills/commit/tests/pre-commit.bats
+pytest skills/commit/tests/test_pre_commit.py -v
 ```
 
 ### Test Coverage
 
-The test suite (`tests/pre-commit.bats`) includes:
+The test suite (`tests/test_pre_commit.py`) includes:
 - GPG signing configuration validation
 - Branch creation on main/master
 - Semantic branch naming (skill/, test/, docs/, update/ prefixes)
@@ -35,12 +35,12 @@ The test suite (`tests/pre-commit.bats`) includes:
 
 ### Test Structure
 
-Tests use isolated temporary git repositories created in `setup()` and cleaned up in `teardown()` to ensure test isolation.
+Tests use pytest fixtures with isolated temporary git repositories created for each test and cleaned up automatically to ensure test isolation.
 
 ## Writing Tests
 
 When adding tests for this skill:
-1. Add test cases to `tests/pre-commit.bats`
-2. Use `setup()` and `teardown()` for isolation
+1. Add test cases to `tests/test_pre_commit.py`
+2. Use pytest fixtures for isolation
 3. Test both success and failure scenarios
-4. Use `BATS_TEST_DIRNAME` for portable paths
+4. Use the `git_repo` fixture for git repository setup

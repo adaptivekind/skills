@@ -7,36 +7,28 @@ This guide explains how to set up your local development environment and run tes
 - Git (with GPG signing configured)
 - GitHub CLI (`gh`)
 - Make
-- bats-core (for running tests)
+- Python 3.x with pytest (for running tests)
 
 ## Installing Dependencies
 
 ### macOS (using Homebrew)
 
 ```bash
-# Install bats-core
-brew install bats-core
+# Install Python if not present
+brew install python
 
-# Verify installation
-bats --version
+# Install pytest
+pip install pytest
 ```
 
 ### Linux
 
 ```bash
-# Install bats-core from source
-git clone https://github.com/bats-core/bats-core.git
-cd bats-core
-sudo ./install.sh /usr/local
+# Install Python if not present
+sudo apt-get install python3 python3-pip
 
-# Verify installation
-bats --version
-```
-
-### Alternative: Install via npm
-
-```bash
-npm install -g bats
+# Install pytest
+pip3 install pytest
 ```
 
 ## Running Tests Locally
@@ -47,7 +39,7 @@ npm install -g bats
 make test
 ```
 
-This will find and run all `.bats` test files in the `skills/` directory.
+This will find and run all Python test files in the `skills/` directory.
 
 ### Run Specific Skill Tests
 
@@ -55,8 +47,8 @@ This will find and run all `.bats` test files in the `skills/` directory.
 # Run commit skill tests only
 make test-commit
 
-# Or directly with bats
-bats skills/commit/tests/pre-commit.bats
+# Or directly with pytest
+pytest skills/commit/tests/test_pre_commit.py -v
 ```
 
 ### Test Help
@@ -99,16 +91,15 @@ ok 2 creates skill branch when on main with skills/ changes
 
 When adding a new skill, include tests in `skills/<skill>/tests/`:
 
-1. Create `skills/<skill>/tests/<test-name>.bats`
-2. Follow the existing pattern in `skills/commit/tests/pre-commit.bats`
-3. Use `setup()` and `teardown()` for test isolation
+1. Create `skills/<skill>/tests/test_<name>.py`
+2. Follow the existing pattern in `skills/commit/tests/test_pre_commit.py`
+3. Use pytest fixtures for test isolation
 4. Run `make test` to verify
 
 ### Test Best Practices
 
 - Each test should be independent and isolated
-- Use temporary directories for git operations
-- Clean up resources in `teardown()`
+- Use pytest's `tmp_path` fixture for temporary directories
 - Test both success and failure scenarios
 
 ## Local Git Configuration
@@ -123,16 +114,14 @@ git config commit.gpgsign true
 
 ## Troubleshooting
 
-### Bats not found
+### pytest not found
 
 ```bash
-# Check if bats is in your PATH
-which bats
+# Check if pytest is installed
+pip show pytest
 
 # If not found, install it:
-brew install bats-core  # macOS
-# or
-sudo ./install.sh /usr/local  # Linux from source
+pip install pytest
 ```
 
 ### Tests failing due to GPG
@@ -145,19 +134,6 @@ gpg --list-secret-keys
 
 # Ensure git can find your key
 git config --global user.signingkey
-```
-
-### Permission denied errors
-
-If you get permission errors installing bats:
-
-```bash
-# On Linux, use sudo for system-wide install
-sudo ./install.sh /usr/local
-
-# Or install to a local directory
-./install.sh "$HOME/.local"
-export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## Continuous Integration

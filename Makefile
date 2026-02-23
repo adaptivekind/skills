@@ -6,12 +6,12 @@ test: test-all
 # Run all skill tests
 test-all:
 	@echo "Running all skill tests..."
-	@find skills -name "*.bats" -path "*/tests/*" -exec bats {} +
+	@pytest skills/ -v
 
 # Run commit skill tests specifically
 test-commit:
 	@echo "Running commit skill tests..."
-	@bats skills/commit/tests/pre-commit.bats
+	@pytest skills/commit/tests/test_pre_commit.py -v
 
 # Show test help
 test-help:
@@ -21,4 +21,4 @@ test-help:
 	@echo "  make test-commit - Run commit skill tests only"
 	@echo ""
 	@echo "To run individual test files:"
-	@echo "  bats skills/<skill>/tests/<test>.bats"
+	@echo "  pytest skills/<skill>/tests/test_<name>.py"
