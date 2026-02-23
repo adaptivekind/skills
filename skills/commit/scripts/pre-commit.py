@@ -12,57 +12,33 @@ Usage: ./scripts/pre-commit.py [branch_prefix]
 
 import os
 import sys
-import subprocess
 import re
+import subprocess
 from datetime import datetime
+
+# Add project root to path so we can import skills.git
+# Check PYTHONPATH first, then fall back to script location
+def find_project_root():
+    # First check PYTHONPATH environment variable
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    if pythonpath and os.path.isdir(os.path.join(pythonpath, 'skills')):
+        return pythonpath
+    
+    # Then try script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    commit_dir = os.path.dirname(script_dir)
+    skills_dir = os.path.dirname(commit_dir)
+    project_root = os.path.dirname(skills_dir)
+    return project_root
+
+sys.path.insert(0, find_project_root())
+
+from skills.git import Git
 
 RED = '\033[0;31m'
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 NC = '\033[0m'
-
-
-def run_git_command(args, capture_output=True, check=True):
-    result = subprocess.run(
-        ['git'] + args,
-        capture_output=capture_output,
-        text=True,
-        check=check
-    )
-    return result.stdout.strip() if capture_output else None
-
-
-def get_current_branch():
-    try:
-        return run_git_command(['branch', '--show-current'])
-    except subprocess.CalledProcessError:
-        return None
-
-
-def is_detached_head():
-    try:
-        result = run_git_command(['branch'])
-        if not result:
-            return True
-        return '(HEAD detached' in result
-    except subprocess.CalledProcessError:
-        return True
-
-
-def get_head_sha():
-    try:
-        result = run_git_command(['rev-parse', '--short', 'HEAD'])
-        return result if result else 'initial'
-    except subprocess.CalledProcessError:
-        return 'initial'
-
-
-def get_changed_files():
-    try:
-        result = run_git_command(['diff', '--name-only'])
-        return result.split('\n') if result else []
-    except subprocess.CalledProcessError:
-        return []
 
 
 def detect_change_type(changed_files):
@@ -100,15 +76,11 @@ def generate_branch_name(change_type, changed_files, branch_prefix=None):
     return f"{change_type}/{date_str}-update"
 
 
-def check_gpg_config():
+def check_gpg_config(git):
     print("Verifying GPG signing configuration...")
     
-    try:
-        user_email = run_git_command(['config', 'user.email'])
-        signing_key = run_git_command(['config', 'user.signingkey'])
-    except subprocess.CalledProcessError:
-        user_email = ''
-        signing_key = ''
+    user_email = git.user_email
+    signing_key = git.user_signingkey
     
     if not user_email or not signing_key:
         print(f"{RED}Error: GPG signing is not configured.{NC}")
@@ -120,12 +92,12 @@ def check_gpg_config():
     print(f"{GREEN}GPG signing configured: {user_email}{NC}")
 
 
-def check_branch(branch_prefix=None):
-    current_branch = get_current_branch()
-    detached = is_detached_head()
+def check_branch(git, branch_prefix=None):
+    current_branch = git.branch_show_current()
+    detached = git.is_detached_head()
     
     if detached:
-        current_branch = get_head_sha()
+        current_branch = git.rev_parse_short_head()
         print(f"{YELLOW}Detached HEAD state detected. Using ref: {current_branch}{NC}")
     
     print(f"Current branch: {current_branch}")
@@ -133,8 +105,8 @@ def check_branch(branch_prefix=None):
     if current_branch in ('main', 'master') or detached:
         print(f"{YELLOW}On main/master or detached HEAD. Creating feature branch...{NC}")
         
-        sha = get_head_sha()
-        changed_files = [f for f in get_changed_files() if f]
+        sha = git.rev_parse_short_head()
+        changed_files = [f for f in git.diff_name_only() if f]
         change_type = detect_change_type(changed_files)
         
         print(f"Detected change type: {change_type}")
@@ -143,28 +115,15 @@ def check_branch(branch_prefix=None):
         
         print(f"Creating branch: {branch_name}")
         
-        run_git_command(['checkout', '-b', branch_name], capture_output=False)
+        git.checkout_new_branch(branch_name)
         
         print(f"{GREEN}Created and switched to branch: {branch_name}{NC}")
 
 
-def check_changes():
+def check_changes(git):
     print("Checking for changes to commit...")
     
-    has_unstaged = False
-    has_staged = False
-    
-    try:
-        run_git_command(['diff', '--quiet'])
-    except subprocess.CalledProcessError:
-        has_unstaged = True
-    
-    try:
-        run_git_command(['diff', '--cached', '--quiet'])
-    except subprocess.CalledProcessError:
-        has_staged = True
-    
-    if not has_unstaged and not has_staged:
+    if not git.has_changes():
         print(f"{YELLOW}No changes to commit.{NC}")
         sys.exit(0)
     
@@ -179,9 +138,11 @@ def check_changes():
 def main():
     branch_prefix = sys.argv[1] if len(sys.argv) > 1 else None
     
-    check_gpg_config()
-    check_branch(branch_prefix)
-    check_changes()
+    git = Git()
+    
+    check_gpg_config(git)
+    check_branch(git, branch_prefix)
+    check_changes(git)
 
 
 if __name__ == '__main__':

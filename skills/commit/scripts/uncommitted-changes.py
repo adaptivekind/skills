@@ -17,8 +17,25 @@ Output includes:
 
 import os
 import sys
-import subprocess
-from pathlib import Path
+
+# Add project root to path so we can import skills.git
+# Check PYTHONPATH first, then fall back to script location
+def find_project_root():
+    # First check PYTHONPATH environment variable
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    if pythonpath and os.path.isdir(os.path.join(pythonpath, 'skills')):
+        return pythonpath
+    
+    # Then try script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    commit_dir = os.path.dirname(script_dir)
+    skills_dir = os.path.dirname(commit_dir)
+    project_root = os.path.dirname(skills_dir)
+    return project_root
+
+sys.path.insert(0, find_project_root())
+
+from skills.git import Git
 
 RED = '\033[0;31m'
 GREEN = '\033[0;32m'
@@ -26,80 +43,6 @@ YELLOW = '\033[1;33m'
 BLUE = '\033[0;34m'
 CYAN = '\033[0;36m'
 NC = '\033[0m'
-
-
-def run_git_command(args, capture_output=True, check=True):
-    result = subprocess.run(
-        ['git'] + args,
-        capture_output=capture_output,
-        text=True,
-        check=check
-    )
-    return result.stdout.strip() if capture_output else None
-
-
-def is_git_repo():
-    try:
-        run_git_command(['rev-parse', '--git-dir'])
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-
-def get_repo_name():
-    try:
-        toplevel = run_git_command(['rev-parse', '--show-toplevel'])
-        return os.path.basename(toplevel) if toplevel else 'unknown'
-    except subprocess.CalledProcessError:
-        return 'unknown'
-
-
-def get_branch():
-    try:
-        return run_git_command(['branch', '--show-current'])
-    except subprocess.CalledProcessError:
-        return 'detached HEAD'
-
-
-def get_staged_files(diff_filter=''):
-    args = ['diff', '--cached', '--name-only']
-    if diff_filter:
-        args.extend(['--diff-filter', diff_filter])
-    try:
-        result = run_git_command(args)
-        return result.split('\n') if result else []
-    except subprocess.CalledProcessError:
-        return []
-
-
-def get_unstaged_files(diff_filter=''):
-    args = ['diff', '--name-only']
-    if diff_filter:
-        args.extend(['--diff-filter', diff_filter])
-    try:
-        result = run_git_command(args)
-        return result.split('\n') if result else []
-    except subprocess.CalledProcessError:
-        return []
-
-
-def get_untracked_files():
-    try:
-        result = run_git_command(['ls-files', '--others', '--exclude-standard'])
-        return result.split('\n') if result else []
-    except subprocess.CalledProcessError:
-        return []
-
-
-def has_changes():
-    unstaged = get_unstaged_files()
-    staged = get_staged_files()
-    untracked = get_untracked_files()
-    return bool(unstaged or staged or untracked)
-
-
-def print_section(title, color):
-    print(f"{color}{title}{NC}")
 
 
 def print_files(files, prefix, color):
@@ -118,19 +61,19 @@ def print_header():
     print("")
 
 
-def print_repo_info():
-    repo_name = get_repo_name()
-    branch = get_branch()
+def print_repo_info(git):
+    repo_name = os.path.basename(git.toplevel)
+    branch = git.branch_show_current() or 'detached HEAD'
     print(f"{BLUE}Repository:{NC} {repo_name}")
     print(f"{BLUE}Branch:{NC} {branch}")
     print("")
 
 
-def print_staged_changes():
-    staged_added = get_staged_files('A')
-    staged_modified = get_staged_files('M')
-    staged_deleted = get_staged_files('D')
-    staged_total = get_staged_files()
+def print_staged_changes(git):
+    staged_added = git.diff_name_only(cached=True, diff_filter='A')
+    staged_modified = git.diff_name_only(cached=True, diff_filter='M')
+    staged_deleted = git.diff_name_only(cached=True, diff_filter='D')
+    staged_total = git.diff_name_only(cached=True)
     
     if not staged_total:
         return
@@ -154,21 +97,18 @@ def print_staged_changes():
         print_files(staged_deleted, "-", RED)
     
     print(f"{CYAN}Staged Changes Summary:{NC}")
-    try:
-        result = run_git_command(['diff', '--cached', '--stat'])
-        if result:
-            lines = result.split('\n')
-            if lines:
-                print(f"  {lines[-1]}")
-    except subprocess.CalledProcessError:
-        pass
+    stat = git.diff_stat(cached=True)
+    if stat:
+        lines = stat.split('\n')
+        if lines:
+            print(f"  {lines[-1]}")
     print("")
 
 
-def print_unstaged_changes():
-    unstaged_modified = get_unstaged_files('M')
-    unstaged_deleted = get_unstaged_files('D')
-    unstaged_total = get_unstaged_files()
+def print_unstaged_changes(git):
+    unstaged_modified = git.diff_name_only(diff_filter='M')
+    unstaged_deleted = git.diff_name_only(diff_filter='D')
+    unstaged_total = git.diff_name_only()
     
     if not unstaged_total:
         return
@@ -187,20 +127,16 @@ def print_unstaged_changes():
         print_files(unstaged_deleted, "-", RED)
     
     print(f"{CYAN}Unstaged Changes Summary:{NC}")
-    try:
-        result = run_git_command(['diff', '--stat'])
-        if result:
-            lines = result.split('\n')
-            if lines:
-                print(f"  {lines[-1]}")
-    except subprocess.CalledProcessError:
-        pass
+    stat = git.diff_stat()
+    if stat:
+        lines = stat.split('\n')
+        if lines:
+            print(f"  {lines[-1]}")
     print("")
 
 
-def print_untracked():
-    untracked = get_untracked_files()
-    untracked = [f for f in untracked if f]
+def print_untracked(git):
+    untracked = [f for f in git.ls_files_others() if f]
     
     if not untracked:
         return
@@ -211,10 +147,10 @@ def print_untracked():
     print("")
 
 
-def print_summary():
-    staged = get_staged_files()
-    unstaged = get_unstaged_files()
-    untracked = get_untracked_files()
+def print_summary(git):
+    staged = git.diff_name_only(cached=True)
+    unstaged = git.diff_name_only()
+    untracked = git.ls_files_others()
     
     staged_count = len([f for f in staged if f])
     unstaged_count = len([f for f in unstaged if f])
@@ -241,21 +177,23 @@ def print_summary():
 
 
 def main():
-    if not is_git_repo():
+    git = Git()
+    
+    if not git.git_dir:
         print(f"{RED}Error: Not a git repository{NC}")
         sys.exit(1)
     
     print_header()
-    print_repo_info()
+    print_repo_info(git)
     
-    if not has_changes():
+    if not git.has_changes() and not git.ls_files_others():
         print(f"{GREEN}✓ Working directory clean - no uncommitted changes{NC}")
         sys.exit(0)
     
-    print_staged_changes()
-    print_unstaged_changes()
-    print_untracked()
-    print_summary()
+    print_staged_changes(git)
+    print_unstaged_changes(git)
+    print_untracked(git)
+    print_summary(git)
 
 
 if __name__ == '__main__':

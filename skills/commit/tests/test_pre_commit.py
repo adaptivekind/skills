@@ -31,11 +31,16 @@ def git_repo(tmp_path):
 
 
 def run_script(cwd, *args):
+    env = os.environ.copy()
+    # Set PYTHONPATH to project root so the script can find skills package
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    env['PYTHONPATH'] = project_root
     result = subprocess.run(
         ['python3', './pre-commit.py'] + list(args),
         cwd=cwd,
         capture_output=True,
-        text=True
+        text=True,
+        env=env
     )
     return result
 
