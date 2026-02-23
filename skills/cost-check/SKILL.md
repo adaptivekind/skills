@@ -28,7 +28,13 @@ This skill retrieves the current cost and token usage statistics from the openco
 Execute the cost-check script to get current statistics:
 
 ```bash
-./scripts/cost-check.sh
+python3 ./scripts/cost-check.py
+```
+
+Or with a custom name:
+
+```bash
+python3 ./scripts/cost-check.py --name my-feature
 ```
 
 This script will:
@@ -39,21 +45,37 @@ This script will:
 ### Output Format
 
 The script outputs JSON with the following fields:
-- `total_cost`: Total cost in dollars
-- `input_tokens`: Number of input tokens used
-- `output_tokens`: Number of output tokens used
-- `cache_read`: Cache read statistics
-- `cache_write`: Cache write statistics
+- `current`: Object with current stats including:
+  - `name`: The name identifier (default: "default")
+  - `timestamp`: Unix timestamp in seconds
+  - `total_cost_cents`: Total cost in cents (integer)
+  - `input_tokens`: Input tokens (integer)
+  - `output_tokens`: Output tokens (integer)
+  - `cache_read`: Cache read (integer)
+  - `cache_write`: Cache write (integer)
+- `delta`: Object showing difference from last checkpoint:
+  - All fields are integers (0 if no previous checkpoint)
 
 ### Example Output
 
 ```json
 {
-  "total_cost": "$3.24",
-  "input_tokens": "1.4M",
-  "output_tokens": "125.5K",
-  "cache_read": "41.2M",
-  "cache_write": "302.5K"
+  "current": {
+    "name": "default",
+    "timestamp": 1771883068,
+    "total_cost_cents": 563,
+    "input_tokens": 2200000,
+    "output_tokens": 233000,
+    "cache_read": 109300000,
+    "cache_write": 1200000
+  },
+  "delta": {
+    "total_cost_cents": 0,
+    "input_tokens": 2200000,
+    "output_tokens": 233000,
+    "cache_read": 109300000,
+    "cache_write": 1200000
+  }
 }
 ```
 
