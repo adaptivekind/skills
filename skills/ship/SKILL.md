@@ -466,9 +466,9 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
                 echo "Tests are failing locally. Attempting to fix..."
                 
                 # Run the skill's test command to see what's failing
-                if [ -f "skills/commit/tests/pre-commit.bats" ]; then
+                if [ -f "skills/commit/tests/test_pre_commit.py" ]; then
                     echo "Running commit skill tests to identify failures..."
-                    bats skills/commit/tests/pre-commit.bats 2>&1 || true
+                    pytest skills/commit/tests/test_pre_commit.py -v 2>&1 || true
                 fi
                 
                 # Ask user if they want to attempt auto-fix or provide guidance
