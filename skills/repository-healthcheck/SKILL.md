@@ -44,17 +44,31 @@ Check if main branch has protection rules:
 
 1. **Check if branch protection exists**:
    ```bash
-   gh api repos/$OWNER/$NAME/protection/main 2>/dev/null || echo "NO_PROTECTION"
+   PROTECTION=$(gh api repos/$OWNER/$NAME/protection/main 2>/dev/null || echo "NO_PROTECTION")
    ```
 
 2. **Check required status checks**:
    ```bash
-   gh api repos/$OWNER/$NAME/protection/main/required_status_checks 2>/dev/null || true
+   STATUS_CHECKS=$(gh api repos/$OWNER/$NAME/protection/main/required_status_checks 2>/dev/null || echo "NONE")
    ```
 
 3. **Check require PR reviews**:
    ```bash
-   gh api repos/$OWNER/$NAME/protection/main/required_pull_request_reviews 2>/dev/null || true
+   PR_REVIEWS=$(gh api repos/$OWNER/$NAME/protection/main/required_pull_request_reviews 2>/dev/null || echo "NONE")
+   ```
+
+4. **Verify status checks configuration**:
+   ```bash
+   # Check if status checks are required
+   if [ "$STATUS_CHECKS" = "NONE" ] || [ -z "$(echo $STATUS_CHECKS | jq -r '.checks[]' 2>/dev/null)" ]; then
+       echo "WARNING: No required status checks configured!"
+   fi
+   
+   # Check if branches must be up to date
+   REQUIRE_BRANCHES_UP_TO_DATE=$(echo "$PROTECTION" | jq -r '.required_status_checks.strict' 2>/dev/null)
+   if [ "$REQUIRE_BRANCHES_UP_TO_DATE" != "true" ]; then
+       echo "WARNING: Branches must be up to date before merging is DISABLED!"
+   fi
    ```
 
 ### Step 4: Check Push and Force Push Settings
@@ -81,33 +95,95 @@ Check:
 
 Compile findings:
 ```bash
+# Check if status checks are configured
+HAS_STATUS_CHECKS=false
+if [ "$STATUS_CHECKS" != "NONE" ] && [ -n "$(echo $STATUS_CHECKS | jq -r '.checks[]' 2>/dev/null)" ]; then
+    HAS_STATUS_CHECKS=true
+fi
+
+# Check branch up to date requirement
+REQUIRE_BRANCHES_UP_TO_DATE=$(echo "$PROTECTION" | jq -r '.required_status_checks.strict' 2>/dev/null)
+
+# Collect issues
+ISSUES=""
+if [ "$PROTECTION" = "NO_PROTECTION" ]; then
+    ISSUES="$ISSUES
+- Main branch has NO protection rules"
+fi
+
+if [ "$HAS_STATUS_CHECKS" != "true" ]; then
+    ISSUES="$ISSUES
+- No required status checks configured (CI tests can be bypassed!)"
+fi
+
+if [ "$REQUIRE_BRANCHES_UP_TO_DATE" != "true" ]; then
+    ISSUES="$ISSUES
+- Branches do NOT need to be up to date before merging"
+fi
+
 REPORT="## Repository Healthcheck
 
 ### Branch Protection
-- Main branch protected: [YES/NO]
-- Require PR reviews: [YES/NO]
-- Require status checks: [YES/NO]
-- Require up-to-date branches: [YES/NO]
-- Require signed commits: [YES/NO]
-- Allow force push: [YES/NO]
-- Allow branch deletion: [YES/NO]
+- Main branch protected: $([ "$PROTECTION" = "NO_PROTECTION" ] && echo "NO" || echo "YES")
+- Require PR reviews: $([ "$PR_REVIEWS" = "NONE" ] && echo "NO" || echo "YES")
+- Require status checks: $HAS_STATUS_CHECKS
+- Require up-to-date branches: $([ "$REQUIRE_BRANCHES_UP_TO_DATE" = "true" ] && echo "YES" || echo "NO")
+- Require signed commits: $(echo "$PROTECTION" | jq -r '.require_signed_commits' 2>/dev/null || echo "NO")
+- Allow force push: $(echo "$PROTECTION" | jq -r '.allow_force_pushes.enabled' 2>/dev/null || echo "N/A")
+- Allow branch deletion: $(echo "$PROTECTION" | jq -r '.allow_deletions' 2>/dev/null || echo "N/A")
 
 ### Merge Settings
-- Squash merge allowed: [YES/NO]
-- Rebase merge allowed: [YES/NO]
-- Merge commit allowed: [YES/NO]
+- Squash merge allowed: $(echo "$MERGE_SETTINGS" | jq -r '.[2]')
+- Rebase merge allowed: $(echo "$MERGE_SETTINGS" | jq -r '.[3]')
+- Merge commit allowed: $(echo "$MERGE_SETTINGS" | jq -r '.[1]')
 
 ### Issues Found
-[List any issues]
+$(if [ -z "$ISSUES" ]; then echo "None"; else echo "$ISSUES"; fi)
 
 ### Recommendation
-[If issues found, ask user whether to apply fixes]
+$(if [ -z "$ISSUES" ]; then echo "Repository is properly configured!"; else echo "Issues found - fix recommended"; fi)
 "
 ```
 
 ### Step 7: Report and Offer Fixes
 
-If issues found, present the report to the user and ask:
+First, check for critical issues that must be fixed:
+```bash
+# Critical issues that MUST be fixed
+CRITICAL_ISSUES=""
+if [ "$PROTECTION" = "NO_PROTECTION" ]; then
+    CRITICAL_ISSUES="$CRITICAL_ISSUES
+- Main branch has NO protection rules"
+fi
+
+if [ "$HAS_STATUS_CHECKS" != "true" ]; then
+    CRITICAL_ISSUES="$CRITICAL_ISSUES
+- CRITICAL: No required status checks! This allows bypassing CI tests!"
+fi
+
+# If there are critical issues, fail the healthcheck
+if [ -n "$CRITICAL_ISSUES" ]; then
+    echo "=========================================="
+    echo "   REPOSITORY HEALTHCHECK FAILED"
+    echo "=========================================="
+    echo ""
+    echo "Critical issues found:"
+    echo "$CRITICAL_ISSUES"
+    echo ""
+    echo "These issues allow unsafe merges and must be fixed!"
+    echo "Would you like me to apply fixes now? (yes/no)"
+    read -p "> " FIX_CHOICE
+    
+    if [ "$FIX_CHOICE" = "yes" ]; then
+        # Proceed to Step 8
+    else
+        echo "Healthcheck failed. Please fix the issues manually."
+        exit 1
+    fi
+fi
+```
+
+If non-critical issues found, present the report to the user and ask:
 
 > The following issues were found:
 > - [List issues]
