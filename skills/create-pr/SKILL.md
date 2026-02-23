@@ -139,7 +139,7 @@ If no commits, fail with error: "No commits to create a PR. Commit your changes 
 
     # Get the AI model being used
     AI_MODEL="${OPENCODE_MODEL:-Kimi K2.5}"
-    
+
     # Build body with model information
     BODY="## Summary
     $COMMITS

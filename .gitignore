@@ -1,5 +1,6 @@
 # Local cost checkpoint files
 .cost-checkpoint
+.stats-history.json
 
 # Python cache
 __pycache__/

@@ -108,7 +108,7 @@ Capture all security check results in variables for the review report:
 3. **Common vulnerability patterns**:
    ```bash
    VULNERABILITY_ISSUES=""
-   
+
    # SQL injection patterns
    if git diff ${BASE_BRANCH}...HEAD | grep -i -E "execute\s*\(|query\s*\(|\.sql" >/dev/null; then
        VULNERABILITY_ISSUES="${VULNERABILITY_ISSUES}SQL injection patterns detected. "
@@ -123,7 +123,7 @@ Capture all security check results in variables for the review report:
    if git diff ${BASE_BRANCH}...HEAD | grep -i -E "password\s*=\s*['\"]|api[_-]?key\s*=\s*['\"]" >/dev/null; then
        VULNERABILITY_ISSUES="${VULNERABILITY_ISSUES}Hardcoded credentials detected. "
    fi
-   
+
    if [ -n "$VULNERABILITY_ISSUES" ]; then
        VULNERABILITIES_STATUS="FAIL - $VULNERABILITY_ISSUES"
    fi
@@ -144,7 +144,7 @@ Capture all security check results in variables for the review report:
    Check for prompt injection vulnerabilities in AI-related code:
    ```bash
    PROMPT_INJECTION_ISSUES=""
-   
+
    # Direct user input to LLM prompts without sanitization
    if git diff ${BASE_BRANCH}...HEAD | grep -i -E "(prompt|system.?prompt|instructions).*\$|concat.*prompt|\+.*prompt" >/dev/null; then
        PROMPT_INJECTION_ISSUES="${PROMPT_INJECTION_ISSUES}Potential prompt injection in user input handling. "
@@ -159,7 +159,7 @@ Capture all security check results in variables for the review report:
    if git diff ${BASE_BRANCH}...HEAD | grep -iE "\.innerHTML\s*=.*\$|dangerouslySetInnerHTML|exec\s*\(.*\$|eval\s*\(.*\$" >/dev/null; then
        PROMPT_INJECTION_ISSUES="${PROMPT_INJECTION_ISSUES}User input in dangerous execution context. "
    fi
-   
+
    if [ -n "$PROMPT_INJECTION_ISSUES" ]; then
        PROMPT_INJECTION_STATUS="FAIL - $PROMPT_INJECTION_ISSUES"
    else
@@ -171,7 +171,7 @@ Capture all security check results in variables for the review report:
    Check for external resource fetching:
    ```bash
    EXTERNAL_URLS_FOUND=""
-   
+
    # HTTP requests to external domains
    if git diff ${BASE_BRANCH}...HEAD | grep -iE "(fetch\s*\(|axios\.|http\.get|http\.post|requests\.get|wget|curl)" >/dev/null; then
        EXTERNAL_URLS_FOUND="${EXTERNAL_URLS_FOUND}HTTP requests found. "
@@ -186,12 +186,12 @@ Capture all security check results in variables for the review report:
    if git diff ${BASE_BRANCH}...HEAD | grep -iE "<script\s+src=|<link\s+href=|<img\s+src=" >/dev/null; then
        EXTERNAL_URLS_FOUND="${EXTERNAL_URLS_FOUND}External scripts/resources found. "
    fi
-   
+
    # Analytics/tracking
    if git diff ${BASE_BRANCH}...HEAD | grep -iE "analytics|tracking|telemetry|sentry|datadog|newrelic" >/dev/null; then
        EXTERNAL_URLS_FOUND="${EXTERNAL_URLS_FOUND}Analytics/telemetry detected. "
    fi
-   
+
    if [ -n "$EXTERNAL_URLS_FOUND" ]; then
        EXTERNAL_URLS_STATUS="WARNING - $EXTERNAL_URLS_FOUND"
    else
