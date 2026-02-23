@@ -2,7 +2,7 @@
 
 ## 2026-02-22
 
-This repository was developed through 16 pull requests created with assistance from AI coding agents.
+This repository was developed through 22 pull requests created with assistance from AI coding agents.
 
 ### PRs 1-8: MiniMax M2.5 Free (OpenCode Zen)
 
@@ -23,9 +23,22 @@ After the free allowance for MiniMax M2.5 was exhausted, development continued u
 - Workflow status checking
 - Testing documentation reorganization
 
+### PRs 17-22: Kimi K2.5 ($0.21 additional)
+
+Additional development continued with **Kimi K2.5** adding **$0.21** for PRs 17 through 22. These PRs included:
+
+- DEVELOP.md documentation
+- Workflow naming standardization
+- Testing documentation reorganization
+- HISTORY.md creation
+- Agentic commit message generation
+- Uncommitted changes script
+- PR review posting improvements
+- Branch protection updates with signed commits
+
 ### Total Investment
 
 - **AI Models Used**: MiniMax M2.5 Free, Kimi K2.5
-- **Total PRs**: 16
-- **Total Cost**: $0.88
+- **Total PRs**: 22
+- **Total Cost**: $1.09 ($0.88 + $0.21)
 - **Platform**: OpenCode
