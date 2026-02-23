@@ -1,6 +1,14 @@
 # Local cost checkpoint files
 .cost-checkpoint
 
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.eggs/
+
 # OS generated files
 .DS_Store
 .DS_Store?
