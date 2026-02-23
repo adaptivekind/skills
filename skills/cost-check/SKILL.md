@@ -68,24 +68,24 @@ PR_NUMBER=$(gh pr list --head "$CURRENT_BRANCH" --json number --jq '.[0].number'
 
 if [ -n "$PR_NUMBER" ]; then
     echo "Found PR #$PR_NUMBER - posting cost information..."
-    
+
     # Get current cost data
     COST_DATA=$(./scripts/cost-check.sh)
-    
+
     # Parse current cost (remove $ and convert to number)
     CURRENT_COST=$(echo "$COST_DATA" | jq -r '.total_cost' | sed 's/[^0-9.]//g')
-    
+
     # Check for previous cost checkpoint (stored in git notes or file)
     PREVIOUS_COST_FILE=".cost-checkpoint"
     PREVIOUS_COST=""
     COST_DELTA=""
-    
+
     # Get all current metrics
     INPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.input_tokens')
     OUTPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.output_tokens')
     CACHE_READ=$(echo "$COST_DATA" | jq -r '.cache_read')
     CACHE_WRITE=$(echo "$COST_DATA" | jq -r '.cache_write')
-    
+
     if [ -f "$PREVIOUS_COST_FILE" ]; then
         # Read previous checkpoint data (format: cost|input|output|cache_read|cache_write)
         PREVIOUS_DATA=$(cat "$PREVIOUS_COST_FILE")
@@ -94,7 +94,7 @@ if [ -n "$PR_NUMBER" ]; then
         PREVIOUS_OUTPUT=$(echo "$PREVIOUS_DATA" | cut -d'|' -f3)
         PREVIOUS_CACHE_READ=$(echo "$PREVIOUS_DATA" | cut -d'|' -f4)
         PREVIOUS_CACHE_WRITE=$(echo "$PREVIOUS_DATA" | cut -d'|' -f5)
-        
+
         # Calculate cost delta
         if command -v bc &> /dev/null; then
             COST_DELTA=$(echo "$CURRENT_COST - $PREVIOUS_COST" | bc)
@@ -102,7 +102,7 @@ if [ -n "$PR_NUMBER" ]; then
             COST_DELTA="N/A"
         fi
     fi
-    
+
     # Build cost report
     COST_REPORT="## Cost Report
 
@@ -113,7 +113,7 @@ if [ -n "$PR_NUMBER" ]; then
 - Cache Read: $CACHE_READ
 - Cache Write: $CACHE_WRITE
 "
-    
+
     # Add deltas if available
     if [ -n "$COST_DELTA" ] && [ "$COST_DELTA" != "N/A" ]; then
         COST_REPORT="$COST_REPORT
@@ -125,11 +125,11 @@ if [ -n "$PR_NUMBER" ]; then
 - Cache Write: $CACHE_WRITE (was $PREVIOUS_CACHE_WRITE)
 "
     fi
-    
+
     # Post to PR as comment
     gh pr comment $PR_NUMBER --body "$COST_REPORT"
     echo "Cost information posted to PR #$PR_NUMBER"
-    
+
     # Save all metrics as checkpoint for next time (format: cost|input|output|cache_read|cache_write)
     echo "$CURRENT_COST|$INPUT_TOKENS|$OUTPUT_TOKENS|$CACHE_READ|$CACHE_WRITE" > "$PREVIOUS_COST_FILE"
     echo "Checkpoint saved: Cost=\$$CURRENT_COST, Input=$INPUT_TOKENS, Output=$OUTPUT_TOKENS, CacheRead=$CACHE_READ, CacheWrite=$CACHE_WRITE"

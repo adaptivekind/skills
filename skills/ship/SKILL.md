@@ -171,21 +171,21 @@ WORKFLOWS_PASSED=false
 while [ $WAITED -lt $MAX_WAIT ]; do
     # Get check status - get all check runs and their conclusions
     CHECK_DATA=$(gh pr view $PR_NUMBER --json statusCheckRollup 2>/dev/null)
-    
+
     if [ -z "$CHECK_DATA" ] || [ "$CHECK_DATA" = "null" ]; then
         echo "No checks found yet, waiting..."
         sleep 10
         WAITED=$((WAITED + 10))
         continue
     fi
-    
+
     # Check if we have any failing checks
     FAILURE_COUNT=$(echo "$CHECK_DATA" | jq '[.statusCheckRollup[] | select(.conclusion == "FAILURE")] | length' 2>/dev/null || echo "0")
     ERROR_COUNT=$(echo "$CHECK_DATA" | jq '[.statusCheckRollup[] | select(.conclusion == "ERROR")] | length' 2>/dev/null || echo "0")
-    
+
     # Check if all checks are complete
     PENDING_COUNT=$(echo "$CHECK_DATA" | jq '[.statusCheckRollup[] | select(.status != "COMPLETED")] | length' 2>/dev/null || echo "0")
-    
+
     if [ "$FAILURE_COUNT" -gt 0 ] || [ "$ERROR_COUNT" -gt 0 ]; then
         echo "Workflows failed! Failure: $FAILURE_COUNT, Error: $ERROR_COUNT"
         WORKFLOWS_PASSED=false
@@ -346,25 +346,25 @@ After posting the review, run cost-check to post cost information to the PR:
 # Check if we're in the skills repository with cost-check skill available
 if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
     echo "Running cost-check to report PR costs..."
-    
+
     # Get current cost data
     COST_DATA=$(skills/cost-check/scripts/cost-check.sh)
-    
+
     # Parse current cost (remove $ and convert to number)
     CURRENT_COST=$(echo "$COST_DATA" | jq -r '.total_cost' | sed 's/[^0-9.]//g')
-    
+
     # Check for previous cost checkpoint
     PREVIOUS_COST_FILE=".cost-checkpoint"
     PREVIOUS_COST=""
     COST_DELTA=""
-    
+
     # Get all current metrics
     INPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.input_tokens')
     OUTPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.output_tokens')
     CACHE_READ=$(echo "$COST_DATA" | jq -r '.cache_read')
     CACHE_WRITE=$(echo "$COST_DATA" | jq -r '.cache_write')
     AI_MODEL="${OPENCODE_MODEL:-Kimi K2.5}"
-    
+
     if [ -f "$PREVIOUS_COST_FILE" ]; then
         # Read previous checkpoint data (format: cost|input|output|cache_read|cache_write)
         PREVIOUS_DATA=$(cat "$PREVIOUS_COST_FILE")
@@ -373,7 +373,7 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
         PREVIOUS_OUTPUT=$(echo "$PREVIOUS_DATA" | cut -d'|' -f3)
         PREVIOUS_CACHE_READ=$(echo "$PREVIOUS_DATA" | cut -d'|' -f4)
         PREVIOUS_CACHE_WRITE=$(echo "$PREVIOUS_DATA" | cut -d'|' -f5)
-        
+
         # Calculate cost delta
         if command -v bc &> /dev/null; then
             COST_DELTA=$(echo "$CURRENT_COST - $PREVIOUS_COST" | bc)
@@ -381,7 +381,7 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
             COST_DELTA="N/A"
         fi
     fi
-    
+
     # Build cost report
     COST_REPORT="## Cost Report
 
@@ -394,7 +394,7 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
 - Cache Read: $CACHE_READ
 - Cache Write: $CACHE_WRITE
 "
-    
+
     # Add deltas if available
     if [ -n "$COST_DELTA" ] && [ "$COST_DELTA" != "N/A" ]; then
         COST_REPORT="$COST_REPORT
@@ -406,11 +406,11 @@ if [ -f "skills/cost-check/scripts/cost-check.sh" ]; then
 - Cache Write: $CACHE_WRITE (was $PREVIOUS_CACHE_WRITE)
 "
     fi
-    
+
     # Post to PR as comment
     gh pr comment $PR_NUMBER --body "$COST_REPORT"
     echo "Cost information posted to PR #$PR_NUMBER"
-    
+
     # Save all metrics as checkpoint for next PR (format: cost|input|output|cache_read|cache_write)
     echo "$CURRENT_COST|$INPUT_TOKENS|$OUTPUT_TOKENS|$CACHE_READ|$CACHE_WRITE" > "$PREVIOUS_COST_FILE"
     echo "Checkpoint saved: Cost=\$$CURRENT_COST, Input=$INPUT_TOKENS, Output=$OUTPUT_TOKENS, CacheRead=$CACHE_READ, CacheWrite=$CACHE_WRITE"
@@ -485,14 +485,14 @@ else
     echo "## Review Findings
 
 The following issues were detected:"
-    
+
 if [ -n "$ISSUES" ]; then
     echo "$ISSUES"
 fi
 
 if [ "$WORKFLOWS_PASSED" != true ]; then
     echo "- Workflows did not pass or timed out"
-    
+
     # Show failed checks
     gh pr checks $PR_NUMBER 2>/dev/null || true
 fi
@@ -514,35 +514,35 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     if [ "$HIGH_CONFIDENCE" = true ]; then
         # Auto-merge with squash
         gh pr merge $PR_NUMBER --squash --delete-branch
-        
+
         # Checkout main and pull to sync
         MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
         if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
-        
+
         echo "Switching to $MAIN_BRANCH and pulling latest..."
         git checkout $MAIN_BRANCH
         git pull origin $MAIN_BRANCH
-        
+
         echo "Changes applied successfully!"
         break
     else
         # Check if the only issue is workflow failures
         if [ -z "$ISSUES" ] && [ "$WORKFLOWS_PASSED" != true ]; then
             echo "Workflows failed. Attempting to diagnose and fix..."
-            
+
             # Get failed check details
             gh pr checks $PR_NUMBER 2>/dev/null || true
-            
+
             # For test failures, run tests locally and fix if possible
             if [ -f "Makefile" ] && make test 2>&1 | grep -q "FAIL\|failed\|error"; then
                 echo "Tests are failing locally. Attempting to fix..."
-                
+
                 # Run the skill's test command to see what's failing
                 if [ -f "skills/commit/tests/test_pre_commit.py" ]; then
                     echo "Running commit skill tests to identify failures..."
                     pytest skills/commit/tests/test_pre_commit.py -v 2>&1 || true
                 fi
-                
+
                 # Ask user if they want to attempt auto-fix or provide guidance
                 echo ""
                 echo "Workflow tests have failed. Would you like to:"
@@ -550,7 +550,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
                 echo "2. Cancel and fix manually"
                 echo "3. View the test output and diff"
                 read -p "Enter your choice: " FIX_CHOICE
-                
+
                 case "$FIX_CHOICE" in
                     1)
                         echo "Attempting to fix test failures..."
@@ -558,7 +558,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
                         # - Update test expectations if tests are outdated
                         # - Remove problematic tests that are environment-specific
                         # - Fix any obvious issues in the code being tested
-                        
+
                         # For now, we'll note what needs fixing and retry
                         echo "Please review the test failures and make necessary fixes."
                         echo "After fixing, commit and push, then run ship again."
@@ -587,7 +587,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 2. Cancel and fix issues
 3. View the full diff and failed checks"
                 read -p "Enter your choice: " USER_CHOICE
-                
+
                 case "$USER_CHOICE" in
                     1)
                         gh pr merge $PR_NUMBER --squash --delete-branch
@@ -621,7 +621,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 2. Cancel and fix issues
 3. View the full diff and failed checks"
             read -p "Enter your choice: " USER_CHOICE
-            
+
             case "$USER_CHOICE" in
                 1)
                     gh pr merge $PR_NUMBER --squash --delete-branch
