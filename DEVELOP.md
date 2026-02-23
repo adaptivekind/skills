@@ -8,6 +8,7 @@ This guide explains how to set up your local development environment and run tes
 - GitHub CLI (`gh`)
 - Make
 - Python 3.x with pytest (for running tests)
+- pre-commit (for git hooks)
 
 ## Installing Dependencies
 
@@ -19,6 +20,9 @@ brew install python
 
 # Install pytest
 pip install pytest
+
+# Install pre-commit
+brew install pre-commit
 ```
 
 ### Linux
@@ -29,7 +33,45 @@ sudo apt-get install python3 python3-pip
 
 # Install pytest
 pip3 install pytest
+
+# Install pre-commit
+pip3 install pre-commit
 ```
+
+## Setting Up Pre-Commit Hooks
+
+This repository uses [pre-commit](https://pre-commit.com/) to run checks before commits.
+
+### Install pre-commit hooks:
+
+```bash
+pre-commit install
+```
+
+### Run hooks manually:
+
+```bash
+# Run all hooks on all files
+pre-commit run --all-files
+
+# Run specific hook
+pre-commit run black
+```
+
+### Update hooks:
+
+```bash
+pre-commit autoupdate
+```
+
+The pre-commit config includes:
+- trailing-whitespace, end-of-file-fixer
+- check-yaml, check-json, check-toml
+- check-added-large-files, check-merge-conflict
+- black (code formatting)
+- isort (import sorting)
+- flake8 (linting)
+- gitleaks (secret detection)
 
 ## Running Tests Locally
 
