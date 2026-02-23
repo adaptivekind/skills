@@ -80,24 +80,27 @@ if [ -n "$PR_NUMBER" ]; then
     PREVIOUS_COST=""
     COST_DELTA=""
     
-    if [ -f "$PREVIOUS_COST_FILE" ]; then
-        PREVIOUS_COST=$(cat "$PREVIOUS_COST_FILE" | sed 's/[^0-9.]//g')
-        
-        # Calculate delta
-        if command -v bc &> /dev/null; then
-            COST_DELTA=$(echo "$CURRENT_COST - $PREVIOUS_COST" | bc)
-        else
-            # Fallback without bc
-            COST_DELTA="N/A (bc not available)"
-        fi
-    fi
-    
-    # Build cost report
+    # Get current input tokens
     INPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.input_tokens')
     OUTPUT_TOKENS=$(echo "$COST_DATA" | jq -r '.output_tokens')
     CACHE_READ=$(echo "$COST_DATA" | jq -r '.cache_read')
     CACHE_WRITE=$(echo "$COST_DATA" | jq -r '.cache_write')
     
+    if [ -f "$PREVIOUS_COST_FILE" ]; then
+        # Read previous checkpoint data (format: cost|input_tokens)
+        PREVIOUS_DATA=$(cat "$PREVIOUS_COST_FILE")
+        PREVIOUS_COST=$(echo "$PREVIOUS_DATA" | cut -d'|' -f1 | sed 's/[^0-9.]//g')
+        PREVIOUS_INPUT_TOKENS=$(echo "$PREVIOUS_DATA" | cut -d'|' -f2)
+        
+        # Calculate deltas
+        if command -v bc &> /dev/null; then
+            COST_DELTA=$(echo "$CURRENT_COST - $PREVIOUS_COST" | bc)
+        else
+            COST_DELTA="N/A"
+        fi
+    fi
+    
+    # Build cost report
     COST_REPORT="## Cost Report
 
 **Current Session Costs:**
@@ -108,10 +111,11 @@ if [ -n "$PR_NUMBER" ]; then
 - Cache Write: $CACHE_WRITE
 "
     
-    # Add delta if available
-    if [ -n "$COST_DELTA" ] && [ "$COST_DELTA" != "N/A (bc not available)" ]; then
+    # Add deltas if available
+    if [ -n "$COST_DELTA" ] && [ "$COST_DELTA" != "N/A" ]; then
         COST_REPORT="$COST_REPORT
-**PR Cost (Delta from last checkpoint):** \$$COST_DELTA
+**PR Cost (Delta):** \$$COST_DELTA
+**Input Tokens (Delta):** $INPUT_TOKENS (from previous checkpoint)
 "
     fi
     
@@ -119,9 +123,9 @@ if [ -n "$PR_NUMBER" ]; then
     gh pr comment $PR_NUMBER --body "$COST_REPORT"
     echo "Cost information posted to PR #$PR_NUMBER"
     
-    # Save current cost as checkpoint for next time
-    echo "$CURRENT_COST" > "$PREVIOUS_COST_FILE"
-    echo "Cost checkpoint saved: \$$CURRENT_COST"
+    # Save current cost and input tokens as checkpoint for next time (format: cost|input_tokens)
+    echo "$CURRENT_COST|$INPUT_TOKENS" > "$PREVIOUS_COST_FILE"
+    echo "Cost checkpoint saved: \$$CURRENT_COST, Input: $INPUT_TOKENS"
 else
     echo "No open PR found for current branch - skipping PR cost post"
 fi
