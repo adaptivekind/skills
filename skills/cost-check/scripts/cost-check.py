@@ -10,10 +10,18 @@ Usage: python3 cost-check.py [--name NAME]
 
 Output: JSON with "current" and "delta" fields
 """
+import os
+import sys
+
+sys.path.insert(
+    0,
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+)
 
 import argparse
 import json
-import sys
 from datetime import datetime
 
 from common.stats import Stats
