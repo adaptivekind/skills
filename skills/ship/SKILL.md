@@ -1,11 +1,19 @@
 ---
 name: ship
-description: Commits, pushes, creates PR, reviews, and merges to main with safety checks
+description: Commits, pushes, creates PR, reviews, and merges to main through GitHub PR with safety checks
 ---
 
 # Ship Skill
 
 This skill automates the complete workflow: commit changes, push, create PR, review, and merge if approved.
+
+## ⚠️ IMPORTANT: Merging Happens Through GitHub PR
+
+**NEVER merge directly to main using `git push` or local `git merge`.** All changes to main MUST go through a GitHub Pull Request to ensure:
+- Code review requirements are met
+- Branch protection rules are enforced
+- CI checks pass before merging
+- Audit trail is preserved in GitHub
 
 ## ⚠️ IMPORTANT: All Steps Are MANDATORY
 
@@ -513,14 +521,15 @@ MAX_RETRIES=3
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     if [ "$HIGH_CONFIDENCE" = true ]; then
-        # Auto-merge with squash
+        # Merge happens through GitHub PR (not local git)
         gh pr merge $PR_NUMBER --squash --delete-branch
 
-        # Checkout main and pull to sync
+        # After GitHub merge, sync local main from origin
+        # Note: Do NOT push to main directly - all changes must go through PR
         MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
         if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
 
-        echo "Switching to $MAIN_BRANCH and pulling latest..."
+        echo "PR merged on GitHub. Syncing local $MAIN_BRANCH..."
         git checkout $MAIN_BRANCH
         git pull origin $MAIN_BRANCH
 
@@ -625,6 +634,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 
             case "$USER_CHOICE" in
                 1)
+                    # Merge happens through GitHub PR (not local git)
                     gh pr merge $PR_NUMBER --squash --delete-branch
                     MAIN_BRANCH=$(git branch --list main master | head -1 | sed 's/.* //')
                     if [ -z "$MAIN_BRANCH" ]; then MAIN_BRANCH="main"; fi
